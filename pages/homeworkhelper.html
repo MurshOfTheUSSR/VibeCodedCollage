@@ -1,0 +1,682 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Clock, 
+  Inbox, 
+  Play, 
+  Plus, 
+  X, 
+  ArrowLeft, 
+  Trash2, 
+  Zap, 
+  Pause, 
+  RotateCcw, 
+  Check, 
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Wand2, 
+  Calculator,
+  Flame,
+  Music,
+  PenTool,
+  BrainCircuit,
+  Volume2,
+  VolumeX,
+  AlertTriangle
+} from 'lucide-react';
+
+// --- Utility Functions ---
+
+// Audio Context Singleton for Ambience
+let audioCtx = null;
+let noiseNode = null;
+let gainNode = null;
+
+const toggleBrownNoise = (play) => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    if (!audioCtx) {
+        audioCtx = new AudioContext();
+    }
+
+    if (play) {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        
+        const bufferSize = audioCtx.sampleRate * 2;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        let lastOut = 0;
+        for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            data[i] = (lastOut + (0.02 * white)) / 1.02;
+            lastOut = data[i];
+            data[i] *= 3.5;
+        }
+
+        noiseNode = audioCtx.createBufferSource();
+        noiseNode.buffer = buffer;
+        noiseNode.loop = true;
+        
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = 0.05;
+
+        noiseNode.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        noiseNode.start();
+    } else {
+        if (noiseNode) {
+            noiseNode.stop();
+            noiseNode.disconnect();
+            noiseNode = null;
+        }
+    }
+};
+
+const playSound = (type) => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    
+    const ctx = audioCtx || new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    if (type === 'complete') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1046.5, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.5);
+    } else if (type === 'tick') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+    }
+};
+
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
+const formatDateShort = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+// --- Sub-Components ---
+
+// 1. Calendar Picker Component
+const CalendarPicker = ({ value, onChange }) => {
+    const [viewDate, setViewDate] = useState(value ? new Date(value) : new Date());
+    const [selectedDate, setSelectedDate] = useState(value ? new Date(value) : null);
+    const [time, setTime] = useState(value ? value.slice(11, 16) : "23:59");
+
+    const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+    const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+
+    const handleDateClick = (day) => {
+        const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
+        setSelectedDate(newDate);
+        updateParent(newDate, time);
+    };
+
+    const handleTimeChange = (e) => {
+        const newTime = e.target.value;
+        setTime(newTime);
+        if (selectedDate) {
+            updateParent(selectedDate, newTime);
+        }
+    };
+
+    const updateParent = (date, t) => {
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        onChange(`${yyyy}-${mm}-${dd}T${t}`);
+    };
+
+    const changeMonth = (offset) => {
+        const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + offset, 1);
+        setViewDate(newDate);
+    };
+
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    return (
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 shadow-inner">
+            <div className="flex justify-between items-center mb-4">
+                <button onClick={(e) => { e.preventDefault(); changeMonth(-1); }} className="p-1 hover:bg-slate-700 rounded transition-colors"><ChevronLeft size={16} /></button>
+                <span className="font-bold text-sm tracking-wide">{months[viewDate.getMonth()]} {viewDate.getFullYear()}</span>
+                <button onClick={(e) => { e.preventDefault(); changeMonth(1); }} className="p-1 hover:bg-slate-700 rounded transition-colors"><ChevronRight size={16} /></button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] mb-2">
+                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <span key={d} className="text-slate-500 font-bold uppercase tracking-tighter">{d}</span>)}
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center">
+                {Array.from({ length: firstDay }).map((_, i) => <div key={`empty-${i}`} />)}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const isSelected = selectedDate && 
+                        selectedDate.getDate() === day && 
+                        selectedDate.getMonth() === viewDate.getMonth() && 
+                        selectedDate.getFullYear() === viewDate.getFullYear();
+                    
+                    const isToday = new Date().getDate() === day && 
+                        new Date().getMonth() === viewDate.getMonth() && 
+                        new Date().getFullYear() === viewDate.getFullYear();
+
+                    return (
+                        <button
+                            key={day}
+                            onClick={(e) => { e.preventDefault(); handleDateClick(day); }}
+                            className={`
+                                h-8 w-8 rounded-full flex items-center justify-center text-sm transition-all
+                                ${isSelected ? 'bg-blue-600 text-white shadow-lg scale-110 font-bold' : 'hover:bg-slate-700 text-slate-300'}
+                                ${isToday && !isSelected ? 'border border-blue-500/50 text-blue-400' : ''}
+                            `}
+                        >
+                            {day}
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-700 flex items-center justify-between">
+                <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1 tracking-widest"><Clock size={12}/> Time due</span>
+                <input 
+                    type="time" 
+                    value={time}
+                    onChange={handleTimeChange}
+                    className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm focus:border-blue-500 outline-none text-white font-mono"
+                />
+            </div>
+        </div>
+    );
+};
+
+// 2. Countdown Display
+const DueDateCountdown = ({ targetDate }) => {
+    const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
+
+    function calculateTimeLeft() {
+        const difference = +new Date(targetDate) - +new Date();
+        let timeLeft = {};
+
+        if (difference > 0) {
+            timeLeft = {
+                days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+                hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+                minutes: Math.floor((difference / 1000 / 60) % 60),
+                seconds: Math.floor((difference / 1000) % 60)
+            };
+        } else {
+            timeLeft = { days: 0, hours: 0, minutes: 0, seconds: 0, expired: true };
+        }
+        return timeLeft;
+    }
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTimeLeft(calculateTimeLeft());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [targetDate]);
+
+    const isUrgent = !timeLeft.expired && timeLeft.days < 1;
+    const isWarning = !timeLeft.expired && timeLeft.days < 3;
+    
+    let colorClass = "text-green-400";
+    if (timeLeft.expired) colorClass = "text-gray-500";
+    else if (isUrgent) colorClass = "text-red-500 font-bold";
+    else if (isWarning) colorClass = "text-yellow-400";
+
+    if (timeLeft.expired) return <span className="text-red-500 font-bold text-[10px] bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">OVERDUE</span>;
+
+    return (
+        <div className={`flex items-center gap-1 font-mono text-xs ${colorClass}`}>
+            <Clock size={12} />
+            <span>
+                {String(timeLeft.days).padStart(2, '0')}d : 
+                {String(timeLeft.hours).padStart(2, '0')}h : 
+                {String(timeLeft.minutes).padStart(2, '0')}m
+            </span>
+        </div>
+    );
+};
+
+// 3. Main Application Component
+export default function App() {
+    const [assignments, setAssignments] = useState(() => {
+        try {
+            const saved = localStorage.getItem('focusfuel_assignments');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) { return []; }
+    });
+    const [streak, setStreak] = useState(() => {
+        try { return parseInt(localStorage.getItem('focusfuel_streak')) || 0; } catch (e) { return 0; }
+    });
+    const [activeView, setActiveView] = useState('dashboard');
+    const [selectedAssignment, setSelectedAssignment] = useState(null);
+    const [idToDelete, setIdToDelete] = useState(null); // Custom Delete Confirmation State
+    
+    const [timerMode, setTimerMode] = useState('pomodoro');
+    const [timeLeft, setTimeLeft] = useState(25 * 60);
+    const [isRunning, setIsRunning] = useState(false);
+    const [ambiencePlaying, setAmbiencePlaying] = useState(false);
+    const [distractionNotes, setDistractionNotes] = useState("");
+
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
+        script.async = true;
+        document.body.appendChild(script);
+        return () => { if (document.body.contains(script)) document.body.removeChild(script); };
+    }, []);
+
+    useEffect(() => { localStorage.setItem('focusfuel_assignments', JSON.stringify(assignments)); }, [assignments]);
+    useEffect(() => { localStorage.setItem('focusfuel_streak', streak); }, [streak]);
+
+    const addAssignment = (data) => {
+        setAssignments([...assignments, { ...data, id: generateId(), progress: 0 }]);
+        setActiveView('dashboard');
+    };
+
+    const deleteAssignment = (id) => {
+        setAssignments(prev => prev.filter(a => a.id !== id));
+        setIdToDelete(null);
+        if (selectedAssignment && selectedAssignment.id === id) {
+            setSelectedAssignment(null);
+            setActiveView('dashboard');
+            setIsRunning(false);
+        }
+    };
+
+    const calculateFinishTime = (remainingMinutes) => {
+        const now = new Date();
+        let totalMinutes = remainingMinutes;
+        const breaks = Math.floor(remainingMinutes / 25);
+        totalMinutes += breaks * 5;
+        const finishDate = new Date(now.getTime() + totalMinutes * 60000);
+        return finishDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    // --- Confirmation Modal Component ---
+    const ConfirmDeleteModal = () => {
+        if (!idToDelete) return null;
+        const assignment = assignments.find(a => a.id === idToDelete);
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-fade-in">
+                <div className="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-fade-in-up">
+                    <div className="flex items-center gap-3 text-red-400 mb-4">
+                        <AlertTriangle size={24} />
+                        <h3 className="text-lg font-bold">Delete Assignment?</h3>
+                    </div>
+                    <p className="text-slate-400 text-sm mb-6">
+                        Are you sure you want to delete <span className="text-slate-200 font-semibold">"{assignment?.title || 'this assignment'}"</span>? All chunks and progress will be lost.
+                    </p>
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={() => setIdToDelete(null)}
+                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-3 rounded-xl transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={() => deleteAssignment(idToDelete)}
+                            className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-red-600/20"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // --- A. Dashboard View ---
+    const Dashboard = () => {
+        const totalPending = assignments.reduce((acc, curr) => acc + (curr.chunks ? curr.chunks.filter(c => !c.done).length : 0), 0);
+
+        return (
+            <div className="max-w-md mx-auto min-h-screen pb-20 p-4 font-sans text-slate-200">
+                <header className="flex justify-between items-center mb-8 pt-4">
+                    <div>
+                        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">FocusFuel</h1>
+                        <p className="text-slate-400 text-sm">Turn Due Dates into Done Dates.</p>
+                    </div>
+                    <div className="flex gap-2">
+                         <div className="bg-slate-800 p-2 rounded-lg border border-slate-700 flex flex-col items-center min-w-[60px] shadow-sm">
+                            <span className="text-[10px] text-slate-400 text-center font-bold tracking-widest uppercase">Streak</span>
+                            <div className="flex items-center gap-1 text-orange-500">
+                                <Flame size={16} fill="currentColor" />
+                                <span className="text-xl font-mono font-bold">{streak}</span>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                {assignments.length === 0 ? (
+                    <div className="text-center py-20 opacity-40">
+                        <div className="mb-4 flex justify-center"><Inbox size={48} /></div>
+                        <p className="text-lg font-medium">Clear horizon!</p>
+                        <p className="text-sm">Tap the plus button to add an assignment.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {assignments.map(assignment => {
+                            const totalChunks = assignment.chunks.length;
+                            const completedChunks = assignment.chunks.filter(c => c.done).length;
+                            const progress = totalChunks === 0 ? 0 : (completedChunks / totalChunks) * 100;
+                            
+                            const remainingMinutes = assignment.chunks
+                                .filter(c => !c.done)
+                                .reduce((acc, c) => acc + parseInt(c.duration), 0);
+
+                            return (
+                                <div key={assignment.id} 
+                                     onClick={() => { setSelectedAssignment(assignment); setActiveView('focus'); }}
+                                     className="bg-slate-800 rounded-xl p-4 border border-slate-700 hover:border-blue-500/50 transition-all cursor-pointer shadow-lg group relative overflow-hidden active:scale-[0.98]">
+                                    
+                                    <div className="absolute bottom-0 left-0 h-1 bg-slate-700 w-full overflow-hidden">
+                                        <div className="h-full bg-blue-500 transition-all duration-700" style={{ width: `${progress}%` }}></div>
+                                    </div>
+
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-semibold text-lg truncate pr-2 flex-1">{assignment.title}</h3>
+                                        <DueDateCountdown targetDate={assignment.dueDate} />
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-end">
+                                        <div className="text-sm text-slate-400">
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-slate-900/50 px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                                                    {completedChunks}/{totalChunks} Tasks
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                                                    ~{Math.floor(remainingMinutes / 60)}h {remainingMinutes % 60}m left
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setIdToDelete(assignment.id); }}
+                                                className="p-2 text-slate-500 hover:text-red-400 transition-colors rounded-full hover:bg-red-400/10"
+                                                title="Delete assignment"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                            <button className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                                                <Play size={16} fill="white" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                <button 
+                    onClick={() => setActiveView('add')}
+                    className="fixed bottom-8 right-8 bg-gradient-to-tr from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white w-16 h-16 rounded-full shadow-2xl shadow-blue-500/30 flex items-center justify-center transition-all hover:scale-110 active:scale-90 z-50">
+                    <Plus size={36} />
+                </button>
+            </div>
+        );
+    };
+
+    // --- B. Add Assignment View ---
+    const AddAssignment = () => {
+        const [title, setTitle] = useState('');
+        const [dueDate, setDueDate] = useState('');
+        const [chunks, setChunks] = useState([]);
+        const [chunkInput, setChunkInput] = useState('');
+        const [assignmentType, setAssignmentType] = useState('Essay');
+        const [mathConfig, setMathConfig] = useState({ easy: 0, medium: 0, hard: 0 });
+
+        const handleAddChunk = (e) => {
+            if (e) e.preventDefault();
+            if (!chunkInput) return;
+            setChunks([...chunks, { id: generateId(), title: chunkInput, duration: 25, done: false, scheduledDate: new Date().toISOString() }]);
+            setChunkInput('');
+        };
+
+        const removeChunk = (id) => {
+            setChunks(chunks.filter(c => c.id !== id));
+        };
+
+        const handleSave = () => {
+            if (!title || !dueDate) return alert('Please enter title and due date');
+            addAssignment({ title, dueDate, chunks: chunks.length ? chunks : [{id: generateId(), title: "Complete Assignment", duration: 60, done: false}] });
+        };
+
+        const generateSmartPlan = () => {
+            if (!dueDate) return alert("Set a Due Date first!");
+
+            let generated = [];
+            if (assignmentType === 'Problem Set' && (mathConfig.easy > 0 || mathConfig.medium > 0 || mathConfig.hard > 0)) {
+                const addBatch = (count, label, t) => {
+                    let cBatch = [], cTime = 0;
+                    for (let i = 1; i <= count; i++) {
+                        if (cTime + t > 50) {
+                            generated.push({ title: `${cBatch.length} ${label} Problems`, duration: cTime });
+                            cBatch = []; cTime = 0;
+                        }
+                        cBatch.push(i); cTime += t;
+                    }
+                    if (cTime > 0) generated.push({ title: `${cBatch.length} ${label} Problems`, duration: cTime });
+                };
+                addBatch(mathConfig.easy, "Easy", 5);
+                addBatch(mathConfig.medium, "Med", 15);
+                addBatch(mathConfig.hard, "Hard", 30);
+            } else {
+                const templates = {
+                    'Essay': [{t:'Research',d:45},{t:'Outline',d:30},{t:'Drafting Intro',d:30},{t:'Body Blocks',d:60},{t:'Conclusion',d:25},{t:'Proofreading',d:30}],
+                    'Problem Set': [{t:'Review Lecture',d:20},{t:'Core Problems',d:45},{t:'Review/Check',d:15}],
+                    'Lab Report': [{t:'Data Process',d:30},{t:'Methods',d:25},{t:'Visuals/Graphs',d:30},{t:'Discussion',d:45}],
+                    'Exam Prep': [{t:'Notes Review',d:30},{t:'Concepts A',d:50},{t:'Concepts B',d:50},{t:'Practice Quiz',d:45}],
+                    'Project': [{t:'Planning',d:30},{t:'Phase 1',d:60},{t:'Phase 2',d:60},{t:'Phase 3',d:60},{t:'Final Review',d:45}],
+                    'Coding Project': [{t:'Logic/Plan',d:30},{t:'Core Coding',d:60},{t:'UI/Style',d:60},{t:'Testing',d:45}],
+                    'Presentation': [{t:'Slides A',d:45},{t:'Slides B',d:45},{t:'Speaker Notes',d:30},{t:'Practice Run',d:20}]
+                };
+                const sel = templates[assignmentType] || [];
+                generated = sel.map(x => ({ title: x.t, duration: x.d }));
+            }
+
+            const now = new Date();
+            const due = new Date(dueDate);
+            const diffDays = Math.max(1, Math.ceil((due - now) / 86400000));
+
+            const final = generated.map((t, i) => {
+                const dayOffset = Math.floor((i / (generated.length || 1)) * (diffDays - 0.5));
+                const d = new Date(now); d.setDate(now.getDate() + dayOffset);
+                return { id: generateId(), title: t.title, duration: t.duration, done: false, scheduledDate: d.toISOString() };
+            });
+
+            setChunks([...chunks, ...final]);
+        };
+
+        return (
+            <div className="max-w-md mx-auto min-h-screen p-4 bg-slate-900 text-slate-200 animate-fade-in">
+                <div className="flex items-center gap-4 mb-6">
+                    <button onClick={() => setActiveView('dashboard')} className="p-2 hover:bg-slate-800 rounded-full transition-colors"><ArrowLeft /></button>
+                    <h2 className="text-xl font-bold">New Assignment</h2>
+                </div>
+
+                <div className="space-y-6">
+                    <div>
+                        <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">General Info</label>
+                        <input type="text" placeholder="Title (e.g., Biology Final Report)" className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-white placeholder-slate-500 focus:border-blue-500 outline-none transition-colors" value={title} onChange={e => setTitle(e.target.value)} />
+                    </div>
+
+                    <CalendarPicker value={dueDate} onChange={setDueDate} />
+
+                    <div className="bg-slate-800/50 rounded-2xl p-4 border border-blue-500/20 shadow-xl">
+                        <div className="flex items-center gap-2 mb-4 text-blue-400"><Wand2 size={18} /><span className="font-bold text-sm">Smart Auto-Scheduler</span></div>
+                        <div className="flex flex-col gap-3">
+                            <select className="bg-slate-900 w-full rounded-xl p-3 text-sm border border-slate-700 focus:border-blue-500 outline-none transition-colors" value={assignmentType} onChange={e => setAssignmentType(e.target.value)}>
+                                <option value="Essay">Essay</option><option value="Problem Set">Problem Set</option><option value="Lab Report">Lab Report</option><option value="Project">Project</option><option value="Exam Prep">Exam Prep</option><option value="Coding Project">Coding Project</option><option value="Presentation">Presentation</option>
+                            </select>
+                            {assignmentType === 'Problem Set' && (
+                                <div className="flex gap-2">
+                                    <div className="flex-1 text-center"><label className="text-[9px] text-green-400 uppercase font-bold">Easy</label><input type="number" className="w-full bg-slate-900 rounded-lg p-2 text-sm border border-slate-700" value={mathConfig.easy} onChange={e => setMathConfig({...mathConfig, easy: +e.target.value})} /></div>
+                                    <div className="flex-1 text-center"><label className="text-[9px] text-yellow-400 uppercase font-bold">Med</label><input type="number" className="w-full bg-slate-900 rounded-lg p-2 text-sm border border-slate-700" value={mathConfig.medium} onChange={e => setMathConfig({...mathConfig, medium: +e.target.value})} /></div>
+                                    <div className="flex-1 text-center"><label className="text-[9px] text-red-400 uppercase font-bold">Hard</label><input type="number" className="w-full bg-slate-900 rounded-lg p-2 text-sm border border-slate-700" value={mathConfig.hard} onChange={e => setMathConfig({...mathConfig, hard: +e.target.value})} /></div>
+                                </div>
+                            )}
+                            <button onClick={generateSmartPlan} className="bg-blue-600 px-4 py-3 rounded-xl font-bold text-sm hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"><Calculator size={16} /> Generate Battle Plan</button>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700">
+                        <div className="flex gap-2 mb-4">
+                            <input type="text" placeholder="Add custom task..." className="flex-1 bg-slate-900 rounded-lg p-2 text-sm text-white placeholder-slate-600 border border-slate-700" value={chunkInput} onChange={e => setChunkInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleAddChunk()} />
+                            <button onClick={() => handleAddChunk()} className="bg-slate-700 p-2 rounded-lg hover:bg-slate-600 text-white transition-colors"><Plus size={20} /></button>
+                        </div>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            {chunks.map((chunk, idx) => (
+                                <div key={chunk.id} className="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
+                                    <div className="flex items-center gap-3"><span className="text-slate-500 text-[10px] font-mono">{idx + 1}</span><div className="flex flex-col"><span className="text-xs font-medium">{chunk.title}</span><span className="text-[9px] text-blue-400 flex items-center gap-1 font-bold uppercase"><Calendar size={10} />{formatDateShort(chunk.scheduledDate)}</span></div></div>
+                                    <button onClick={() => removeChunk(chunk.id)} className="text-slate-500 hover:text-red-400 transition-colors p-1"><X size={16} /></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <button onClick={handleSave} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:scale-[1.02] active:scale-[0.98] text-white font-bold py-5 rounded-2xl shadow-xl transition-all">Start Project</button>
+                </div>
+            </div>
+        );
+    };
+
+    // --- C. Focus Mode ---
+    const FocusMode = () => {
+        const timerRef = useRef(null);
+        const [showTools, setShowTools] = useState(false);
+
+        useEffect(() => {
+            if (isRunning && timeLeft > 0) timerRef.current = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+            else if (timeLeft === 0) {
+                setIsRunning(false); playSound('complete');
+                if (timerMode === 'pomodoro') { 
+                    setTimerMode('shortBreak'); setTimeLeft(5*60); setStreak(s => s+1);
+                    if (Notification.permission === "granted") new Notification("FocusFuel", { body: "Work set complete! Time for a short break." });
+                } else { 
+                    setTimerMode('pomodoro'); setTimeLeft(25*60); 
+                    if (Notification.permission === "granted") new Notification("FocusFuel", { body: "Break over! Let's get back to it." });
+                }
+            }
+            return () => clearInterval(timerRef.current);
+        }, [isRunning, timeLeft]);
+
+        const toggleTimer = () => { if (!isRunning) playSound('tick'); setIsRunning(!isRunning); if (Notification.permission !== "granted") Notification.requestPermission(); };
+        const formatTime = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+        
+        const toggleChunk = (id) => {
+            const updated = selectedAssignment.chunks.map(c => c.id === id ? {...c, done: !c.done} : c);
+            const newAssignment = { ...selectedAssignment, chunks: updated };
+            if (updated.find(c => c.id === id).done && window.confetti) window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            setSelectedAssignment(newAssignment);
+            setAssignments(assignments.map(a => a.id === selectedAssignment.id ? newAssignment : a));
+        };
+
+        const activeChunks = selectedAssignment.chunks.filter(c => !c.done);
+        const estFinish = calculateFinishTime(activeChunks.reduce((acc, c) => acc + c.duration, 0));
+        const totalTime = timerMode === 'pomodoro' ? 25*60 : 5*60;
+        const offset = (2 * Math.PI * 120) * (1 - (totalTime - timeLeft) / totalTime);
+
+        return (
+            <div className="max-w-md mx-auto min-h-screen bg-slate-900 flex flex-col relative overflow-hidden text-slate-200 animate-fade-in">
+                <div className={`absolute top-0 left-0 w-full h-1/2 opacity-20 bg-gradient-to-b ${timerMode==='pomodoro'?'from-blue-600':'from-green-500'} to-transparent pointer-events-none transition-colors duration-1000`}></div>
+                <div className="relative z-10 flex justify-between items-center p-4">
+                    <button onClick={() => { setIsRunning(false); toggleBrownNoise(false); setAmbiencePlaying(false); setActiveView('dashboard'); }} className="p-2 bg-slate-800/50 rounded-full hover:bg-slate-700 transition-colors shadow-lg"><ChevronDown /></button>
+                    <h3 className="text-sm font-bold text-slate-300 truncate max-w-[200px]">{selectedAssignment.title}</h3>
+                    <button onClick={() => setIdToDelete(selectedAssignment.id)} className="p-2 text-slate-500 hover:text-red-400 transition-colors"><Trash2 size={20} /></button>
+                </div>
+
+                <div className="mx-4 mb-2 bg-slate-800/60 backdrop-blur-md border border-slate-700/50 p-3 rounded-2xl flex items-center justify-between text-xs animate-fade-in-up shadow-lg">
+                    <div className="flex items-center gap-2 text-slate-400"><Zap size={14} className="text-yellow-400" /><span>Expected Finish:</span></div>
+                    <span className="font-mono font-bold text-white bg-slate-700 px-3 py-1 rounded-lg">{estFinish}</span>
+                </div>
+
+                <div className="flex-1 flex flex-col items-center justify-center relative">
+                    <div className="relative scale-90 sm:scale-100 transition-transform">
+                        <svg width="300" height="300" className="transform -rotate-90">
+                            <circle cx="150" cy="150" r="120" stroke="#1e293b" strokeWidth="10" fill="transparent" />
+                            <circle cx="150" cy="150" r="120" stroke={timerMode==='pomodoro'?'#3b82f6':'#22c55e'} strokeWidth="10" fill="transparent" strokeDasharray={2*Math.PI*120} strokeDashoffset={offset} strokeLinecap="round" className="transition-[stroke-dashoffset] duration-1000 linear" />
+                        </svg>
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                            <div className="text-7xl font-mono font-bold tracking-tighter mb-2 text-white">{formatTime(timeLeft)}</div>
+                            <div className="uppercase tracking-[0.2em] text-[10px] font-black text-slate-500">{timerMode==='pomodoro'?'Focus Mode':'Break Time'}</div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 mt-8 relative z-30">
+                        <button onClick={() => setShowTools(!showTools)} className={`p-4 rounded-full transition-all duration-300 ${showTools ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}><BrainCircuit size={24} /></button>
+                        <button onClick={toggleTimer} className={`w-24 h-24 rounded-full flex items-center justify-center shadow-2xl transition-all transform active:scale-90 ${isRunning ? 'bg-slate-800 border-2 border-slate-700' : 'bg-gradient-to-tr from-blue-600 to-blue-400 shadow-blue-500/30'}`}><div className="scale-125">{isRunning?<Pause size={32} fill="white"/>:<Play size={32} fill="white" className="ml-1"/>}</div></button>
+                        <button onClick={() => {setIsRunning(false); setTimeLeft(timerMode==='pomodoro'?25*60:5*60);}} className="p-4 rounded-full bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors"><RotateCcw size={24} /></button>
+                    </div>
+
+                    {showTools && (
+                        <div className="absolute top-4 right-4 left-4 bg-slate-800/95 backdrop-blur-xl border border-slate-700 p-5 rounded-3xl z-40 shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-fade-in-up">
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-xs uppercase text-slate-400 font-black tracking-widest flex items-center gap-2"><Icon name="brain-circuit" size={14} /> Study Toolkit</h4>
+                                <button onClick={() => setShowTools(false)} className="p-1 hover:bg-slate-700 rounded-lg"><X size={16} /></button>
+                            </div>
+                            <div className="flex items-center justify-between mb-5 bg-slate-900/50 p-4 rounded-2xl border border-slate-700/50">
+                                <div className="flex items-center gap-3"><div className={`p-3 rounded-xl ${ambiencePlaying?'bg-blue-500 text-white shadow-lg shadow-blue-500/20':'bg-slate-800 text-slate-500'}`}><Volume2 size={20} /></div><div><p className="text-sm font-bold">Focus Noise</p><p className="text-[10px] text-slate-500 uppercase tracking-tighter">Brown Noise Frequency</p></div></div>
+                                <button onClick={() => {toggleBrownNoise(!ambiencePlaying); setAmbiencePlaying(!ambiencePlaying);}} className={`w-12 h-7 rounded-full transition-all relative ${ambiencePlaying?'bg-blue-600':'bg-slate-700'}`}><div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform ${ambiencePlaying?'translate-x-5':''}`}></div></button>
+                            </div>
+                            <label className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-2 block flex items-center gap-1"><PenTool size={12} /> Distraction Parking Lot</label>
+                            <textarea className="w-full bg-slate-900/80 rounded-2xl border border-slate-700 p-3 text-sm text-slate-200 h-24 resize-none focus:border-blue-500/50 outline-none transition-colors" placeholder="Quickly jot down a distraction to deal with it later..." value={distractionNotes} onChange={(e)=>setDistractionNotes(e.target.value)} />
+                        </div>
+                    )}
+                </div>
+
+                <div className="bg-slate-800/80 backdrop-blur-md rounded-t-[2.5rem] p-8 shadow-2xl max-h-[40vh] overflow-y-auto border-t border-slate-700 flex-shrink-0">
+                    <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-lg text-slate-100">Project Steps</h3><span className="text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full border border-blue-500/20">{Math.round((selectedAssignment.chunks.filter(c=>c.done).length/selectedAssignment.chunks.length)*100)}% Done</span></div>
+                    <div className="space-y-4">
+                        {selectedAssignment.chunks.map((chunk) => (
+                            <div key={chunk.id} onClick={() => toggleChunk(chunk.id)} className={`flex items-center p-4 rounded-2xl border transition-all duration-300 cursor-pointer ${chunk.done?'bg-slate-900/30 border-transparent opacity-40':'bg-slate-700/50 border-slate-600/50 hover:bg-slate-700 hover:border-blue-500/50 active:scale-[0.98]'}`}>
+                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mr-4 transition-all ${chunk.done?'bg-blue-600 border-blue-600':'border-slate-500'}`}>{chunk.done && <Check size={16} className="text-white" strokeWidth={4} />}</div>
+                                <div className="flex-1"><p className={`text-sm font-semibold tracking-tight ${chunk.done?'line-through text-slate-500':'text-slate-100'}`}>{chunk.title}</p></div>
+                                <div className="text-[10px] font-bold font-mono text-slate-400 bg-slate-900/50 px-2 py-1 rounded-md">{chunk.duration}m</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-blue-500/30">
+            {activeView === 'dashboard' && <Dashboard />}
+            {activeView === 'add' && <AddAssignment />}
+            {activeView === 'focus' && selectedAssignment && <FocusMode />}
+            <ConfirmDeleteModal />
+        </div>
+    );
+}
+
+// Simple Icon Utility for consistency
+const Icon = ({ name, size = 20 }) => {
+    switch(name) {
+        case 'brain-circuit': return <BrainCircuit size={size} />;
+        case 'volume-2': return <Volume2 size={size} />;
+        case 'pen-tool': return <PenTool size={size} />;
+        default: return null;
+    }
+};
