@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarInspect Pro - Smart Assistant</title>
+    <style>
+        :root {
+            /* Light Theme */
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --border: #e2e8f0;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.1);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --border: #334155;
+            --primary: #60a5fa;
+            --primary-glow: rgba(96, 165, 250, 0.15);
+            --shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding-bottom: 120px;
+            line-height: 1.6;
+            transition: var(--transition);
+        }
+
+        /* Navbar */
+        .navbar {
+            background: var(--bg-card);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-actions { display: flex; gap: 12px; align-items: center; }
+
+        .theme-toggle {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .theme-toggle:hover { background: var(--border); }
+
+        .progress-track {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            z-index: 99;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            box-shadow: 0 0 8px var(--primary);
+            transition: width 0.4s ease;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 2rem auto;
+            padding: 0 1.25rem;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .card-header { 
+            padding: 1.25rem 1.5rem; 
+            border-bottom: 1px solid var(--border);
+            background: rgba(var(--primary), 0.02);
+        }
+
+        .card-title { margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .card-body { padding: 1.5rem; }
+
+        .input-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--text-sub);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Inputs */
+        .input-group { margin-bottom: 1.5rem; }
+        
+        select, input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 1rem;
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            transition: var(--transition);
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+
+        .btn-action {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            width: 100%;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-action:hover { transform: translateY(-1px); filter: brightness(1.1); }
+        .btn-action:active { transform: translateY(0); }
+
+        /* Calculator Visuals */
+        .calc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+        .targets-container {
+            margin-top: 1.5rem;
+            background: var(--bg-input);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .price-range { display: flex; gap: 20px; text-align: center; }
+        .price-point { flex: 1; padding: 10px; border-radius: 12px; }
+        .price-point.low { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .price-point.high { background: var(--primary-glow); color: var(--primary); }
+        
+        .price-label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        .price-value { font-size: 1.5rem; font-weight: 800; }
+
+        /* Checklist UI */
+        .section-trigger {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .section-trigger:hover { background: var(--bg-input); }
+
+        .item-row {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .item-row:last-child { border-bottom: none; }
+
+        .item-main { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 1rem; }
+
+        .custom-check {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: var(--transition);
+            color: transparent; /* Hidden by default */
+            user-select: none;
+        }
+
+        input[type="checkbox"]:checked + .custom-check {
+            background: var(--success);
+            border-color: var(--success);
+            color: white; /* Appear only when checked */
+        }
+
+        .item-info { flex: 1; }
+        .item-name { font-weight: 600; font-size: 1.05rem; }
+        .item-meta { font-size: 0.75rem; color: var(--text-sub); }
+
+        .severity-picker { display: flex; gap: 8px; }
+        .sev-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            border-radius: 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--text-sub);
+            transition: var(--transition);
+        }
+
+        .sev-btn.active.minor { background: var(--warning); color: white; border-color: var(--warning); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
+        .sev-btn.active.major { background: var(--danger); color: white; border-color: var(--danger); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+        .sev-btn.active.critical { background: #000; color: white; border-color: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+
+        /* Footer */
+        .footer {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 101;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+        }
+
+        .repair-total-box { display: flex; flex-direction: column; }
+        .repair-total-label { font-size: 0.75rem; font-weight: 800; color: var(--text-sub); text-transform: uppercase; }
+        .repair-total-val { font-size: 1.4rem; font-weight: 800; color: var(--danger); }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            z-index: 200;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-box {
+            background: var(--bg-card);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 550px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .report-card {
+            padding: 12px;
+            background: var(--bg-input);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border-left: 6px solid var(--danger);
+        }
+
+        .status-msg {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 8px;
+            text-align: center;
+            min-height: 1.2em;
+        }
+
+        @media (max-width: 650px) {
+            .calc-grid { grid-template-columns: 1fr; }
+            .price-range { flex-direction: column; gap: 10px; }
+            .navbar { padding: 0.75rem 1rem; }
+            .brand { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body data-theme="light">
+
+    <nav class="navbar">
+        <div class="brand"><span>🚗</span> CarInspect Pro</div>
+        <div class="nav-actions">
+            <button class="reset-btn" id="resetBtn" onclick="handleReset()" style="color: var(--danger); background:none; border:none; cursor:pointer; font-weight:700;">Reset</button>
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
+        </div>
+    </nav>
+
+    <div class="progress-track">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <div class="container">
+        <!-- 1. Vehicle Selection -->
+        <div class="card">
+            <div class="card-header"><h3 class="card-title">🔍 Market Discovery</h3></div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div><label class="input-label">Year</label><select id="carYear"></select></div>
+                    <div><label class="input-label">Make</label><select id="carMake"></select></div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label class="input-label">Model Name</label>
+                    <input type="text" id="carModel" placeholder="e.g. Corolla, Mustang, etc.">
+                </div>
+                <button class="btn-action" id="marketSearchBtn" onclick="searchMarketValue()">Explore Market Prices ↗</button>
+                <div id="marketStatus" class="status-msg"></div>
+            </div>
+        </div>
+
+        <!-- 2. The Negotiation Zone -->
+        <div class="card" style="border-top: 5px solid var(--primary);">
+            <div class="card-header"><h3 class="card-title">📊 Negotiation Zone</h3></div>
+            <div class="card-body">
+                <div class="calc-grid">
+                    <div>
+                        <label class="input-label">Market Low ($)</label>
+                        <input type="number" id="marketLow" placeholder="7500" oninput="calculateTargets()">
+                    </div>
+                    <div>
+                        <label class="input-label">Market High ($)</label>
+                        <input type="number" id="marketHigh" placeholder="9500" oninput="calculateTargets()">
+                    </div>
+                    <div>
+                        <label class="input-label">Auto Repairs ($)</label>
+                        <input type="number" id="repairCost" value="0" readonly style="opacity: 0.8; font-weight: 800;">
+                    </div>
+                </div>
+
+                <div class="targets-container">
+                    <div class="price-range">
+                        <div class="price-point low">
+                            <span class="price-label">Great Deal Target</span>
+                            <span class="price-value" id="targetLow">---</span>
+                        </div>
+                        <div class="price-point high">
+                            <span class="price-label">Fair Deal Target</span>
+                            <span class="price-value" id="targetHigh">---</span>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 1rem; font-size: 0.8rem; color: var(--text-sub);">
+                        Targets = Market Price minus Estimated Repairs
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Dynamic Checklist -->
+        <div id="checklistContainer"></div>
+    </div>
+
+    <!-- Persistent Footer -->
+    <div class="footer">
+        <div class="repair-total-box">
+            <span class="repair-total-label">Est. Repair Budget</span>
+            <span class="repair-total-val" id="footerTotal">$0</span>
+        </div>
+        <button class="btn-action" style="width: auto; padding: 12px 30px;" onclick="openReport()">Summary Report</button>
+    </div>
+
+    <!-- Report View -->
+    <div class="modal-overlay" id="reportModal">
+        <div class="modal-box">
+            <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin:0">Inspection Breakdown</h3>
+                <button onclick="closeReport()" style="border:none; background:none; font-size:1.5rem; color:var(--text-main); cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding: 1.5rem; overflow-y: auto;" id="reportContent"></div>
+            <div style="padding: 1.5rem; border-top: 1px solid var(--border);">
+                <button class="btn-action" id="copyBtn" onclick="copyReport(event)">📋 Copy Results for Negotiation</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const carMakes = ["Acura", "Audi", "BMW", "Chevrolet", "Dodge", "Ford", "GMC", "Honda", "Hyundai", "Jeep", "Kia", "Lexus", "Mazda", "Mercedes-Benz", "Nissan", "Subaru", "Tesla", "Toyota", "Volkswagen", "Volvo"];
+        
+        const inspectionSections = {
+            "🛠️ Exterior & Framework": [
+                { text: "Body Rust / Bubbling", cost: 1200 },
+                { text: "Tire Replacement Needed", cost: 700 },
+                { text: "Windshield Chips / Cracks", cost: 400 },
+                { text: "Major Frame Corrosion", cost: 3000 },
+                { text: "Headlight / Taillight Fogging", cost: 250 }
+            ],
+            "⚙️ Mechanical & Drive": [
+                { text: "Oil Leaks / Burning", cost: 1100 },
+                { text: "Engine Ticking / Rattling", cost: 3500 },
+                { text: "Transmission Shifting Issues", cost: 2500 },
+                { text: "Brake Squeak / Vibration", cost: 500 },
+                { text: "Exhaust Noise / Holes", cost: 600 }
+            ],
+            "📱 Cabin & Tech": [
+                { text: "AC / Climate Control Failure", cost: 1000 },
+                { text: "Warning Lights (CEL, Airbag)", cost: 600 },
+                { text: "Bad Interior Odors", cost: 200 },
+                { text: "Broken Seat Controls", cost: 350 },
+                { text: "Faulty Window Motors", cost: 300 }
+            ]
+        };
+
+        let activeIssues = {}; 
+
+        function init() {
+            // Setup Selects
+            const yr = document.getElementById('carYear');
+            for(let i=2026; i>=1990; i--) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.innerText = i;
+                yr.appendChild(opt);
+            }
+            const mk = document.getElementById('carMake');
+            const defaultMake = document.createElement('option');
+            defaultMake.value = "";
+            defaultMake.innerText = "Select Make";
+            mk.appendChild(defaultMake);
+            carMakes.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.innerText = m;
+                mk.appendChild(opt);
+            });
+
+            // Check system preference
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                setTheme('dark');
+            }
+
+            renderChecklist();
+        }
+
+        function toggleTheme() {
+            const current = document.body.getAttribute('data-theme');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        }
+
+        function setTheme(theme) {
+            document.body.setAttribute('data-theme', theme);
+            document.getElementById('themeBtn').innerText = theme === 'light' ? '🌙' : '☀️';
+        }
+
+        function renderChecklist() {
+            const container = document.getElementById('checklistContainer');
+            let sIdx = 0;
+            for(const [title, items] of Object.entries(inspectionSections)) {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <button class="section-trigger" onclick="toggleSectionBody(this)">
+                        <span>${title}</span><span>▼</span>
+                    </button>
+                    <div class="section-body"></div>`;
+                
+                const body = card.querySelector('.section-body');
+                items.forEach((item, iIdx) => {
+                    const id = `it-${sIdx}-${iIdx}`;
+                    body.innerHTML += `
+                        <div class="item-row" id="row-${id}">
+                            <div class="item-main">
+                                <input type="checkbox" id="chk-${id}" style="display:none" onchange="updateProgress('${id}')">
+                                <label for="chk-${id}" class="custom-check" id="lbl-${id}">✓</label>
+                                <div class="item-info">
+                                    <div class="item-name" id="name-${id}">${item.text}</div>
+                                    <div class="item-meta">Standard shop rate: ~$${item.cost}</div>
+                                </div>
+                            </div>
+                            <div class="severity-picker">
+                                <button class="sev-btn minor" onclick="setSeverity('${id}', 'minor', ${item.cost})">Small Problem</button>
+                                <button class="sev-btn major" onclick="setSeverity('${id}', 'major', ${item.cost})">Medium Problem</button>
+                                <button class="sev-btn critical" onclick="setSeverity('${id}', 'critical', ${item.cost})">Critical Issue</button>
+                            </div>
+                        </div>`;
+                });
+                container.appendChild(card);
+                sIdx++;
+            }
+        }
+
+        function toggleSectionBody(btn) {
+            const body = btn.nextElementSibling;
+            body.style.display = (body.style.display === 'none' || body.style.display === '') ? 'block' : 'none';
+        }
+
+        function setSeverity(id, level, base) {
+            const row = document.getElementById(`row-${id}`);
+            const btns = row.querySelectorAll('.sev-btn');
+            const target = row.querySelector(`.${level}`);
+            
+            if(activeIssues[id] && activeIssues[id].level === level) {
+                delete activeIssues[id];
+                target.classList.remove('active');
+            } else {
+                let mult = level === 'minor' ? 0.4 : (level === 'major' ? 1 : 2.2);
+                activeIssues[id] = { level, cost: Math.round(base * mult), name: document.getElementById(`name-${id}`).innerText };
+                btns.forEach(b => b.classList.remove('active'));
+                target.classList.add('active');
+            }
+            recalcRepairs();
+        }
+
+        function updateProgress(id) {
+            const row = document.getElementById(`row-${id}`);
+            const chk = document.getElementById(`chk-${id}`);
+            row.style.opacity = chk.checked ? '0.4' : '1';
+            
+            const allCount = document.querySelectorAll('input[type="checkbox"]').length;
+            const checkedCount = document.querySelectorAll('input[type="checkbox"]:checked').length;
+            document.getElementById('progressBar').style.width = (checkedCount / allCount * 100) + '%';
+        }
+
+        function recalcRepairs() {
+            let total = 0;
+            for(let key in activeIssues) total += activeIssues[key].cost;
+            document.getElementById('repairCost').value = total;
+            document.getElementById('footerTotal').innerText = '$' + total.toLocaleString();
+            calculateTargets();
+        }
+
+        function calculateTargets() {
+            const low = parseFloat(document.getElementById('marketLow').value) || 0;
+            const high = parseFloat(document.getElementById('marketHigh').value) || 0;
+            const rep = parseFloat(document.getElementById('repairCost').value) || 0;
+
+            const tLow = document.getElementById('targetLow');
+            const tHigh = document.getElementById('targetHigh');
+
+            if(low > 0) tLow.innerText = '$' + Math.max(0, Math.round(low - rep)).toLocaleString();
+            else tLow.innerText = "---";
+
+            if(high > 0) tHigh.innerText = '$' + Math.max(0, Math.round(high - rep)).toLocaleString();
+            else tHigh.innerText = "---";
+        }
+
+        function searchMarketValue() {
+            const y = document.getElementById('carYear').value;
+            const m = document.getElementById('carMake').value;
+            const mo = document.getElementById('carModel').value;
+            const status = document.getElementById('marketStatus');
+            
+            if(!y || !m) {
+                status.innerText = "⚠️ Select Year and Make first.";
+                status.style.color = "var(--danger)";
+                setTimeout(() => { status.innerText = ""; }, 3000);
+                return;
+            }
+            status.innerText = "Opening search in new tab...";
+            status.style.color = "var(--success)";
+            setTimeout(() => { status.innerText = ""; }, 3000);
+            window.open(`https://www.google.com/search?q=${y}+${m}+${mo}+private+party+price+range`, '_blank');
+        }
+
+        function openReport() {
+            const content = document.getElementById('reportContent');
+            content.innerHTML = '';
+            const issues = Object.values(activeIssues);
+            
+            if(issues.length === 0) {
+                content.innerHTML = '<p style="text-align:center; padding:20px; color:var(--text-sub);">No specific issues flagged. Car appears to be in great condition!</p>';
+            } else {
+                issues.forEach(iss => {
+                    content.innerHTML += `
+                        <div class="report-card">
+                            <div style="font-weight:800; text-transform:uppercase; font-size:0.65rem; color:var(--danger); margin-bottom:4px;">${iss.level} ISSUE</div>
+                            <div style="font-weight:700; color:var(--text-main);">${iss.name}</div>
+                            <div style="font-size:0.85rem; color:var(--text-sub);">Estimated deduction: $${iss.cost.toLocaleString()}</div>
+                        </div>`;
+                });
+            }
+            document.getElementById('reportModal').classList.add('active');
+        }
+
+        function closeReport() {
+            document.getElementById('reportModal').classList.remove('active');
+        }
+
+        function copyReport(event) {
+            const content = document.getElementById('reportContent').innerText;
+            const footerVal = document.getElementById('footerTotal').innerText;
+            const fullText = "Vehicle Inspection Deductions:\n\n" + content + "\n\nTotal Est. Repair Budget: " + footerVal;
+            
+            const btn = event.currentTarget;
+            const originalHTML = btn.innerHTML;
+
+            // Fallback copy method for iFrame/Preview environments
+            const textArea = document.createElement("textarea");
+            textArea.value = fullText;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    btn.innerHTML = "✅ Copied to Clipboard!";
+                    btn.style.background = "var(--success)";
+                    setTimeout(() => {
+                        btn.innerHTML = originalHTML;
+                        btn.style.background = "";
+                    }, 2000);
+                } else {
+                    throw new Error('Unsuccessful copy');
+                }
+            } catch (err) {
+                btn.innerHTML = "❌ Failed to Copy";
+                btn.style.background = "var(--danger)";
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.style.background = "";
+                }, 2000);
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        function handleReset() {
+            const btn = document.getElementById('resetBtn');
+            if (btn.innerText === "Confirm Reset?") {
+                location.reload();
+            } else {
+                btn.innerText = "Confirm Reset?";
+                setTimeout(() => {
+                    if (btn) btn.innerText = "Reset";
+                }, 3000);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

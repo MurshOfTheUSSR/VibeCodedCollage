@@ -1,0 +1,563 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Settings, Info, RefreshCcw, Droplets, Trophy, Timer, 
+  ChevronRight, Star, User, Activity, Target, Zap, Clock, ListChecks, Gauge, X, HelpCircle, ChevronDown, Rocket, BookOpen
+} from 'lucide-react';
+
+// --- Standards Data (Expanded USA Swimming Motivational Times) ---
+const STANDARDS_DATA = {
+  "Male": {
+    "10&U": {
+      "50 Free": { B: 37.09, BB: 33.59, A: 30.19, AA: 28.39, AAA: 26.69, AAAA: 24.99 },
+      "100 Free": { B: 124.79, BB: 115.89, A: 106.99, AA: 102.59, AAA: 98.09, AAAA: 93.69 },
+      "50 Fly": { B: 43.19, BB: 38.89, A: 34.69, AA: 32.59, AAA: 30.49, AAAA: 28.39 },
+      "100 Fly": { B: 141.09, BB: 130.69, A: 120.29, AA: 114.99, AAA: 109.79, AAAA: 104.59 }
+    },
+    "11-12": {
+      "50 Free": { B: 33.09, BB: 30.29, A: 27.59, AA: 26.19, AAA: 24.79, AAAA: 23.39 },
+      "100 Free": { B: 112.29, BB: 106.19, A: 60.19, AA: 57.19, AAA: 54.09, AAAA: 51.09 },
+      "200 Free": { B: 141.49, BB: 133.09, A: 124.59, AA: 120.39, AAA: 116.09, AAAA: 111.89 },
+      "50 Fly": { B: 36.69, BB: 33.69, A: 30.59, AA: 29.09, AAA: 27.59, AAAA: 25.99 },
+      "100 Fly": { B: 124.09, BB: 116.39, A: 108.69, AA: 104.79, AAA: 100.99, AAAA: 57.09 },
+      "200 Fly": { B: 312.09, BB: 254.69, A: 237.29, AA: 228.69, AAA: 219.99, AAAA: 211.39 }
+    },
+    "13-14": {
+      "50 Free": { B: 30.19, BB: 27.69, A: 25.29, AA: 24.19, AAA: 23.09, AAAA: 21.89 },
+      "100 Free": { B: 106.09, BB: 100.59, A: 55.09, AA: 52.39, AAA: 49.69, AAAA: 46.99 },
+      "200 Free": { B: 145.49, BB: 136.69, A: 127.89, AA: 123.59, AAA: 119.19, AAAA: 114.79 },
+      "100 Fly": { B: 115.39, BB: 109.19, A: 62.89, AA: 59.79, AAA: 56.59, AAAA: 53.49 },
+      "200 Fly": { B: 146.19, BB: 137.49, A: 128.89, AA: 124.49, AAA: 120.19, AAAA: 115.89 }
+    },
+    "15-16": {
+      "50 Free": { B: 28.59, BB: 26.29, A: 23.99, AA: 22.89, AAA: 21.69, AAAA: 20.59 },
+      "100 Free": { B: 62.29, BB: 57.19, A: 52.09, AA: 49.49, AAA: 46.99, AAAA: 44.39 },
+      "100 Fly": { B: 109.39, BB: 103.19, A: 56.89, AA: 53.79, AAA: 50.59, AAAA: 47.49 },
+      "200 Fly": { B: 139.19, BB: 130.49, A: 121.89, AA: 117.49, AAA: 113.19, AAAA: 108.89 }
+    },
+    "17-18": {
+      "50 Free": { B: 27.29, BB: 25.09, A: 22.89, AA: 21.79, AAA: 20.69, AAAA: 19.59 },
+      "100 Free": { B: 59.49, BB: 54.59, A: 49.69, AA: 47.19, AAA: 44.79, AAAA: 42.29 },
+      "100 Fly": { B: 105.19, BB: 59.59, A: 53.89, AA: 51.09, AAA: 48.19, AAAA: 45.39 },
+      "200 Fly": { B: 132.09, BB: 124.59, A: 117.09, AA: 113.19, AAA: 109.49, AAAA: 105.59 }
+    }
+  },
+  "Female": {
+    "10&U": {
+      "50 Free": { B: 37.59, BB: 34.09, A: 30.59, AA: 28.79, AAA: 27.09, AAAA: 25.39 },
+      "100 Free": { B: 125.79, BB: 116.89, A: 107.99, AA: 103.59, AAA: 99.09, AAAA: 94.69 },
+      "50 Fly": { B: 43.69, BB: 39.39, A: 35.09, AA: 32.89, AAA: 30.69, AAAA: 28.59 },
+      "100 Fly": { B: 142.19, BB: 131.79, A: 121.39, AA: 116.09, AAA: 110.79, AAAA: 105.49 }
+    },
+    "11-12": {
+      "50 Free": { B: 34.29, BB: 31.49, A: 28.59, AA: 27.19, AAA: 25.79, AAAA: 24.29 },
+      "100 Free": { B: 114.79, BB: 108.59, A: 62.39, AA: 59.29, AAA: 56.19, AAAA: 53.09 },
+      "50 Fly": { B: 37.29, BB: 34.19, A: 31.09, AA: 29.59, AAA: 27.99, AAAA: 26.49 },
+      "100 Fly": { B: 124.99, BB: 117.39, A: 109.69, AA: 105.79, AAA: 101.99, AAAA: 58.19 }
+    },
+    "13-14": {
+      "50 Free": { B: 31.59, BB: 28.99, A: 26.49, AA: 25.29, AAA: 24.09, AAAA: 22.89 },
+      "100 Free": { B: 68.79, BB: 63.09, A: 57.39, AA: 54.59, AAA: 51.69, AAAA: 48.89 },
+      "100 Fly": { B: 118.89, BB: 112.29, A: 105.59, AA: 102.29, AAA: 58.89, AAAA: 55.59 },
+      "200 Fly": { B: 153.19, BB: 144.59, A: 135.89, AA: 131.59, AAA: 127.29, AAAA: 122.89 }
+    }
+  }
+};
+
+const FACTORS = {
+  SCY: { SCM: 1.11, LCM: 1.132, SCY: 1 },
+  SCM: { SCY: 0.9009, LCM: 1.02, SCM: 1 },
+  LCM: { SCY: 0.8834, SCM: 0.9804, LCM: 1 }
+};
+
+const App = () => {
+  const [activeTab, setActiveTab] = useState('converter');
+  const [showHelp, setShowHelp] = useState(false);
+  
+  // Profile Settings
+  const [gender, setGender] = useState('Male');
+  const [ageGroup, setAgeGroup] = useState('13-14');
+  const [selectedEvent, setSelectedEvent] = useState('100 Fly');
+  
+  // Current Time Inputs
+  const [minutes, setMinutes] = useState('');
+  const [seconds, setSeconds] = useState('');
+  const [millis, setMillis] = useState('');
+
+  // Goal Time Inputs (For Training Mode)
+  const [goalMin, setGoalMin] = useState('');
+  const [goalSec, setGoalSec] = useState('');
+  const [goalMs, setGoalMs] = useState('');
+  
+  const [isRelayStart, setIsRelayStart] = useState(false);
+  const [fromCourse, setFromCourse] = useState('SCY');
+  const [toCourse, setToCourse] = useState('LCM');
+  const [targetDistance, setTargetDistance] = useState('200 Fly');
+  const [intervalBase, setIntervalBase] = useState(10); 
+
+  const availableEvents = useMemo(() => {
+    const data = STANDARDS_DATA[gender]?.[ageGroup];
+    return data ? Object.keys(data) : ['50 Free', '100 Free'];
+  }, [gender, ageGroup]);
+
+  const ageGroupOptions = useMemo(() => {
+    const fromData = Object.keys(STANDARDS_DATA[gender] || {});
+    // Ensure uniqueness and sorted order
+    return Array.from(new Set([...fromData, '17-18'])).sort();
+  }, [gender]);
+
+  useEffect(() => {
+    if (!availableEvents.includes(selectedEvent)) {
+      setSelectedEvent(availableEvents[0]);
+    }
+  }, [availableEvents, selectedEvent]);
+
+  const pad = (num, size) => {
+    let s = num.toString();
+    while (s.length < size) s = "0" + s;
+    return s;
+  };
+
+  const formatSecondsToTime = (totalSeconds) => {
+    if (isNaN(totalSeconds) || totalSeconds <= 0) return "0:00.00";
+    const resM = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
+    const resS = Math.floor(remainingSeconds);
+    const resMs = Math.round((remainingSeconds - resS) * 100);
+    return `${resM > 0 ? resM + ':' : ''}${resM > 0 ? pad(resS, 2) : resS}.${pad(resMs, 2)}`;
+  };
+
+  const inputTotalSeconds = useMemo(() => {
+    const m = parseInt(minutes) || 0;
+    const s = parseInt(seconds) || 0;
+    const ms = parseInt(millis) || 0;
+    let total = (m * 60) + s + (ms / 100);
+    if (isRelayStart && total > 0.7) total -= 0.7; 
+    return total;
+  }, [minutes, seconds, millis, isRelayStart]);
+
+  const goalTotalSeconds = useMemo(() => {
+    const m = parseInt(goalMin) || 0;
+    const s = parseInt(goalSec) || 0;
+    const ms = parseInt(goalMs) || 0;
+    return (m * 60) + s + (ms / 100);
+  }, [goalMin, goalSec, goalMs]);
+
+  const activeResultSeconds = useMemo(() => {
+    if (inputTotalSeconds === 0) return 0;
+    if (activeTab === 'projector') {
+      const d1 = parseInt(selectedEvent) || 50;
+      const d2 = parseInt(targetDistance) || 100;
+      return inputTotalSeconds * Math.pow((d2 / d1), 1.06);
+    }
+    return inputTotalSeconds * FACTORS[fromCourse][toCourse];
+  }, [inputTotalSeconds, activeTab, fromCourse, toCourse, selectedEvent, targetDistance]);
+
+  const coachingAdvice = useMemo(() => {
+    const event = selectedEvent.toLowerCase();
+    const time = goalTotalSeconds > 0 ? goalTotalSeconds : activeResultSeconds;
+    if (time <= 0) return "Enter a time or goal to see training advice.";
+
+    if (event.includes('fly')) {
+      if (event.includes('50')) {
+        return {
+          title: "Speed & Snap",
+          tips: "Focus on a powerful underwater breakout. Your second kick is the secret to 50 Fly speed.",
+          set: `Broken 50s: 2 x 25 on :10 rest at ${formatSecondsToTime(time / 2)} pace.`
+        };
+      } else if (event.includes('100')) {
+        return {
+          title: "The Back-Half",
+          tips: "Don't 'short-arm' the recovery when you get tired. Keep your breath low and rhythmic.",
+          set: `Broken 100s: 4 x 25 on :10 rest at ${formatSecondsToTime(time / 4)} pace.`
+        };
+      } else {
+        return {
+          title: "Fly Endurance",
+          tips: "Efficiency is key. Use your hips to drive the stroke, not just your arms. Keep your head neutral.",
+          set: `Pace Work: 8 x 50 Fly on 1:15, holding ${formatSecondsToTime(time / 4)}.`
+        };
+      }
+    }
+    return {
+      title: "Race Ready",
+      tips: "Consistency in your turns is where you win the race. Practice your push-offs every single lap.",
+      set: `Threshold Set: 5 x 100 on 1:30 at goal pace + 5s.`
+    };
+  }, [selectedEvent, activeResultSeconds, goalTotalSeconds]);
+
+  const splitsBreakdown = useMemo(() => {
+    const baseTime = (activeTab === 'training' && goalTotalSeconds > 0) ? goalTotalSeconds : activeResultSeconds;
+    if (baseTime <= 0) return [];
+    const dist = activeTab === 'projector' ? parseInt(targetDistance) : parseInt(selectedEvent);
+    if (isNaN(dist)) return [];
+    const splits = [];
+    if (dist >= 100) splits.push({ label: '100 Pace', time: formatSecondsToTime(baseTime / (dist / 100)) });
+    if (dist >= 50) splits.push({ label: '50 Pace', time: formatSecondsToTime(baseTime / (dist / 50)) });
+    return splits;
+  }, [activeResultSeconds, goalTotalSeconds, activeTab, selectedEvent, targetDistance]);
+
+  const status = useMemo(() => {
+    const groupData = STANDARDS_DATA[gender]?.[ageGroup];
+    if (!groupData || !groupData[selectedEvent] || activeResultSeconds <= 0) return null;
+    const eventData = groupData[selectedEvent];
+    const tiers = [
+      { id: 'AAAA', val: eventData.AAAA, color: "text-amber-400", bg: "bg-amber-400/10" },
+      { id: 'AAA', val: eventData.AAA, color: "text-purple-400", bg: "bg-purple-400/10" },
+      { id: 'AA', val: eventData.AA, color: "text-blue-400", bg: "bg-blue-400/10" },
+      { id: 'A', val: eventData.A, color: "text-emerald-400", bg: "bg-emerald-400/10" },
+      { id: 'BB', val: eventData.BB, color: "text-green-400", bg: "bg-green-400/10" },
+      { id: 'B', val: eventData.B, color: "text-yellow-400", bg: "bg-yellow-400/10" },
+    ];
+    let current = null;
+    let next = null;
+    for (let i = tiers.length - 1; i >= 0; i--) {
+      if (activeResultSeconds <= tiers[i].val) {
+        current = tiers[i];
+        next = tiers[i-1] || null;
+      }
+    }
+    if (!current) {
+        current = { id: 'C', color: "text-slate-400", bg: "bg-slate-400/10" };
+        next = tiers[tiers.length - 1];
+    }
+    return { current, next };
+  }, [gender, ageGroup, selectedEvent, activeResultSeconds]);
+
+  const CustomSelect = ({ label, icon, value, onChange, options }) => (
+    <div className="flex flex-col space-y-1.5 flex-1">
+      {label && (
+        <label className="text-[9px] font-black text-slate-500 uppercase ml-1 flex items-center gap-1.5 tracking-[0.1em]">
+          {icon} {label}
+        </label>
+      )}
+      <div className="relative group/select">
+        <select 
+          value={value}
+          onChange={onChange}
+          className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 sm:p-4 text-xs font-black outline-none appearance-none transition-all duration-300 hover:border-slate-600 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 shadow-lg text-slate-200 cursor-pointer"
+        >
+          {options.map(opt => {
+            const val = opt.value || opt;
+            const labelStr = opt.label || opt;
+            return <option key={val} value={val}>{labelStr}</option>;
+          })}
+        </select>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none transition-transform group-hover/select:scale-110">
+          <ChevronDown size={14} />
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col items-center p-4 sm:p-8 relative selection:bg-blue-500/30">
+      
+      {/* Help Modal */}
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-slate-900 w-full max-w-md rounded-[32px] border border-slate-800 shadow-2xl p-6 relative overflow-y-auto max-h-[90vh]">
+            <button 
+              onClick={() => setShowHelp(false)}
+              className="absolute top-4 right-4 p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-blue-600 p-2 rounded-xl">
+                <HelpCircle className="text-white" size={24} />
+              </div>
+              <h2 className="text-xl font-black uppercase tracking-tight">How to Use</h2>
+            </div>
+            <div className="space-y-6">
+              <section>
+                <h3 className="text-blue-400 text-xs font-black uppercase mb-2 flex items-center gap-2">
+                  <RefreshCcw size={14} /> 1. Converter
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Convert times between SCY (Yards), SCM (Meters), and LCM (Long Course).
+                </p>
+              </section>
+              <section>
+                <h3 className="text-emerald-400 text-xs font-black uppercase mb-2 flex items-center gap-2">
+                  <Activity size={14} /> 2. Projector
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Predict goal times for longer races based on your current sprint speed.
+                </p>
+              </section>
+              <section>
+                <h3 className="text-purple-400 text-xs font-black uppercase mb-2 flex items-center gap-2">
+                  <Timer size={14} /> 3. Training
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Set a goal time to get specific practice sets and coaching tips!
+                </p>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Header */}
+      <header className="w-full max-w-md mb-6 space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-2.5 rounded-2xl shadow-lg shadow-blue-600/30 ring-4 ring-blue-600/10">
+              <Droplets className="text-white" size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight uppercase">SwimScale</h1>
+              <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] -mt-1">Pro Training Lab</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setShowHelp(true)}
+            className="p-2.5 bg-slate-900 rounded-xl text-slate-500 hover:text-blue-400 border border-slate-800 transition-all hover:scale-105 shadow-lg"
+          >
+            <HelpCircle size={20} />
+          </button>
+        </div>
+
+        <div className="flex bg-slate-900 p-1.5 rounded-[22px] border border-slate-800 shadow-xl">
+          {[
+            { id: 'converter', icon: <RefreshCcw size={14} />, label: 'Convert' },
+            { id: 'projector', icon: <Activity size={14} />, label: 'Project' },
+            { id: 'training', icon: <Timer size={14} />, label: 'Training' }
+          ].map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[18px] text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] scale-[1.02]' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <main className="w-full max-w-md space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+        
+        {/* Swimmer Profile */}
+        <div className="bg-slate-900 rounded-[32px] p-5 border border-slate-800 grid grid-cols-2 gap-4 shadow-xl">
+          <div className="space-y-2">
+            <label className="text-[9px] font-black text-slate-600 uppercase ml-1 flex items-center gap-1 tracking-widest">
+              <User size={10} className="text-blue-500" /> Athlete
+            </label>
+            <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+              {['Male', 'Female'].map(g => (
+                <button 
+                  key={g}
+                  onClick={() => setGender(g)}
+                  className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all ${gender === g ? 'bg-slate-800 text-blue-400 shadow-md ring-1 ring-white/5' : 'text-slate-600 hover:text-slate-400'}`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </div>
+          <CustomSelect 
+            label="Age Group"
+            icon={<Activity size={10} className="text-emerald-500" />}
+            value={ageGroup}
+            onChange={(e) => setAgeGroup(e.target.value)}
+            options={ageGroupOptions}
+          />
+        </div>
+
+        {/* Input Logic */}
+        <div className="bg-slate-900 rounded-[40px] shadow-2xl border border-slate-800 overflow-hidden">
+          <div className="p-7 space-y-6">
+            <div className="flex items-end gap-3">
+              <CustomSelect 
+                label="Selected Event"
+                value={selectedEvent}
+                onChange={(e) => setSelectedEvent(e.target.value)}
+                options={availableEvents}
+              />
+              <button 
+                onClick={() => setIsRelayStart(!isRelayStart)}
+                className={`p-4 h-[58px] sm:h-[64px] rounded-[24px] border transition-all hover:scale-105 active:scale-90 flex flex-col items-center justify-center gap-1 shadow-lg ${isRelayStart ? 'bg-blue-600 border-blue-500 text-white ring-4 ring-blue-600/20' : 'bg-slate-950 border-slate-800 text-slate-600 hover:text-slate-400'}`}
+              >
+                <Zap size={20} fill={isRelayStart ? "currentColor" : "none"} />
+                <span className="text-[7px] font-black uppercase">Relay</span>
+              </button>
+            </div>
+
+            {activeTab === 'converter' && (
+              <div className="flex gap-3">
+                <CustomSelect label="From" value={fromCourse} onChange={(e) => setFromCourse(e.target.value)} options={[{ value: 'SCY', label: 'SCY Pool' },{ value: 'SCM', label: 'SCM Pool' },{ value: 'LCM', label: 'LCM Pool' }]} />
+                <div className="flex items-center justify-center pt-6 text-slate-800"><ChevronRight size={18} /></div>
+                <CustomSelect label="To" value={toCourse} onChange={(e) => setToCourse(e.target.value)} options={[{ value: 'LCM', label: 'To Long' },{ value: 'SCM', label: 'To Short' },{ value: 'SCY', label: 'To Yards' }]} />
+              </div>
+            )}
+
+            {activeTab === 'projector' && (
+              <CustomSelect label="Goal Distance" value={targetDistance} onChange={(e) => setTargetDistance(e.target.value)} options={['100 Free', '200 Free', '500 Free', '100 Fly', '200 Fly']} />
+            )}
+
+            {activeTab === 'training' && (
+              <div className="flex flex-col space-y-4">
+                <div className="flex flex-col space-y-2 bg-slate-950/50 p-4 rounded-[28px] border border-slate-800 shadow-inner">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">
+                      <Clock size={12} /> Set Send-off Rest
+                    </span>
+                    <span className="text-xs font-black text-blue-400">+{intervalBase}s</span>
+                  </div>
+                  <input type="range" min="5" max="45" step="5" value={intervalBase} onChange={(e) => setIntervalBase(e.target.value)} className="w-full h-1.5 bg-slate-800 rounded-full accent-blue-600 cursor-pointer" />
+                </div>
+                
+                {/* Goal Input Section */}
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-blue-500 uppercase ml-1 flex items-center gap-1.5 tracking-[0.1em]">
+                    <Target size={12} /> Target Goal Time
+                  </label>
+                  <div className="flex justify-center items-end gap-2 font-mono bg-slate-950 p-4 rounded-3xl border border-slate-800 shadow-inner">
+                    <input type="number" placeholder="0" value={goalMin} onChange={(e) => setGoalMin(e.target.value.slice(0, 1))} className="w-10 bg-transparent text-xl text-center border-b border-slate-700 outline-none" />
+                    <span className="text-xl mb-1">:</span>
+                    <input type="number" placeholder="00" value={goalSec} onChange={(e) => setGoalSec(e.target.value.slice(0, 2))} className="w-10 bg-transparent text-xl text-center border-b border-slate-700 outline-none" />
+                    <span className="text-xl mb-1">.</span>
+                    <input type="number" placeholder="00" value={goalMs} onChange={(e) => setGoalMs(e.target.value.slice(0, 2))} className="w-10 bg-transparent text-xl text-center border-b border-slate-700 outline-none" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Time Entry (Current Time) */}
+            <div className="flex justify-center items-end gap-3 font-mono pt-4">
+              {[
+                { val: minutes, set: setMinutes, label: 'Min' },
+                { val: seconds, set: setSeconds, label: 'Sec' },
+                { val: millis, set: setMillis, label: '100th' }
+              ].map((input, i) => (
+                <React.Fragment key={input.label}>
+                  <div className="flex flex-col items-center group">
+                    <input 
+                      type="number" inputMode="numeric" placeholder={i === 0 ? "0" : "00"} value={input.val}
+                      onChange={(e) => input.set(e.target.value.slice(0, 2))}
+                      className="w-20 h-20 bg-slate-950 text-4xl text-center rounded-[28px] border-2 border-slate-800 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none transition-all shadow-xl font-black text-white"
+                    />
+                    <span className="text-[9px] mt-3 text-slate-600 uppercase font-black tracking-widest">{input.label}</span>
+                  </div>
+                  {i < 2 && <span className="text-4xl mb-10 text-slate-800 font-black">{i === 0 ? ':' : '.'}</span>}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          {/* Result Area */}
+          <div className="p-10 bg-slate-950/80 border-t-2 border-slate-800/50 text-center relative group">
+            <button 
+              onClick={() => {setMinutes(''); setSeconds(''); setMillis(''); setGoalMin(''); setGoalSec(''); setGoalMs('');}} 
+              className="absolute top-6 right-6 p-2.5 bg-slate-900 text-slate-600 hover:text-white rounded-full transition-all border border-slate-800 hover:rotate-180 shadow-md"
+            >
+              <RefreshCcw size={16} />
+            </button>
+            <p className="text-[11px] font-black text-blue-500 uppercase tracking-[0.4em] mb-4 opacity-80">
+              {activeTab === 'converter' ? 'Projected Time' : activeTab === 'projector' ? 'Potential Time' : 'Practice Target'}
+            </p>
+            <div className="text-7xl sm:text-8xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_30px_rgba(37,99,235,0.4)]">
+              {formatSecondsToTime(activeResultSeconds + (activeTab === 'training' ? parseInt(intervalBase) : 0))}
+            </div>
+
+            {splitsBreakdown.length > 0 && (
+              <div className="mt-8 flex justify-center gap-10 border-t border-slate-800/40 pt-8 animate-in fade-in slide-in-from-top-2 duration-700">
+                {splitsBreakdown.map(s => (
+                  <div key={s.label} className="flex flex-col items-center">
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                       <Gauge size={12} className="text-blue-500" /> {s.label}
+                    </p>
+                    <p className="text-xl font-mono font-black text-blue-400">{s.time}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Coach's Corner (Training Mode Only) */}
+        {activeTab === 'training' && (
+          <div className="bg-slate-900 rounded-[36px] p-7 border border-slate-800 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-300">
+             <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-purple-500/10 rounded-2xl ring-2 ring-white/5">
+                  <Rocket size={22} className="text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 mb-0.5">Coach's Corner</h3>
+                  <p className="text-lg font-black italic text-purple-400 uppercase tracking-tighter">{coachingAdvice.title || "Ready to Train"}</p>
+                </div>
+             </div>
+             
+             <div className="space-y-4">
+                <div className="flex gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner">
+                   <BookOpen size={16} className="text-slate-600 shrink-0 mt-0.5" />
+                   <div>
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Technique Key</p>
+                      <p className="text-xs text-slate-400 leading-relaxed font-medium">{coachingAdvice.tips}</p>
+                   </div>
+                </div>
+                <div className="flex gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner">
+                   <ListChecks size={16} className="text-blue-500 shrink-0 mt-0.5" />
+                   <div>
+                      <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Recommended Set</p>
+                      <p className="text-xs font-bold text-slate-200 leading-relaxed italic">{coachingAdvice.set}</p>
+                   </div>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {/* Motivational Progress Card (Converter Mode Only) */}
+        {activeTab === 'converter' && activeResultSeconds > 0 && status && (
+          <div className="bg-slate-900 rounded-[36px] p-7 border border-slate-800 shadow-2xl relative overflow-hidden group/card">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-2xl shadow-lg ${status.current.bg} ring-2 ring-white/5`}>
+                  <Trophy size={22} className={status.current.color} />
+                </div>
+                <div>
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 mb-0.5">Motivational Rank</h3>
+                  <p className={`text-2xl font-black italic uppercase tracking-tighter ${status.current.color}`}>{status.current.id} Class</p>
+                </div>
+              </div>
+              {status.next && (
+                <div className="text-right">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-600 mb-1">Target ({status.next.id})</h3>
+                  <p className="text-xl font-mono font-black text-slate-300">{formatSecondsToTime(status.next.val)}</p>
+                </div>
+              )}
+            </div>
+
+            {status.next ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-[11px] font-black text-slate-500 uppercase tracking-tight">
+                  <span className="flex items-center gap-2"><Target size={14} className="text-blue-500" /> Goal Track</span>
+                  <span className="text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-md">-{ (activeResultSeconds - status.next.val).toFixed(2) }s to go</span>
+                </div>
+                <div className="h-3 w-full bg-slate-950 rounded-full border border-slate-800 overflow-hidden p-0.5 shadow-inner">
+                   <div 
+                    className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-emerald-400 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+                    style={{ width: `${Math.min(100, (status.next.val / activeResultSeconds) * 100)}%` }}
+                   />
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-r from-amber-500/10 to-amber-600/20 p-5 rounded-3xl border border-amber-500/30 text-center shadow-lg uppercase italic text-xs font-black text-amber-400 tracking-widest">
+                Elite Performer: AAAA Rank Achieved!
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      <footer className="mt-10 mb-8 space-y-4 text-center max-w-[320px]">
+        <div className="bg-blue-600/5 p-4 rounded-3xl border border-blue-500/10">
+          <p className="text-[10px] text-slate-500 font-bold leading-relaxed uppercase tracking-widest">
+            🏊 Always drink plenty of water and practice safe underwaters. Trust your coach!
+          </p>
+        </div>
+        <p className="text-[10px] text-slate-700 font-black uppercase tracking-[0.3em]">PRO LAB • V4.6.0</p>
+      </footer>
+    </div>
+  );
+};
