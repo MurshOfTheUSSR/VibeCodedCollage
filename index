@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Suite | Dashboard</title>
+    <style>
+        :root { --neon: #00ff88; --bg: #0f0f0f; --card: #1a1a1a; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 40px; }
+        h1 { text-align: center; font-size: 2.5rem; letter-spacing: 2px; color: var(--neon); }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .section-title { border-bottom: 2px solid #333; margin: 40px 0 20px; padding-bottom: 10px; color: #aaa; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .card { background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 20px; 
+                text-decoration: none; color: white; transition: 0.3s; display: block; }
+        .card:hover { border-color: var(--neon); transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,255,136,0.1); }
+        .card h3 { margin: 0 0 10px 0; color: var(--neon); }
+        .card p { font-size: 0.9rem; color: #ccc; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PROJECT COLLAGE</h1>
+
+        <div class="section-title">Counter-Strike 2</div>
+        <div class="grid">
+            <a href="cs2/econ-calc.html" class="card">
+                <h3>Economy Calculator</h3>
+                <p>Track enemy loss bonuses and predicts their next buy round.</p>
+            </a>
+        </div>
+
+        <div class="section-title">Swimming</div>
+        <div class="grid">
+            <a href="swimming/pace-conv.html" class="card">
+                <h3>Pace Converter</h3>
+                <p>Convert Short Course Yards to Long Course Meters instantly.</p>
+            </a>
+        </div>
+
+        <div class="section-title">First Car</div>
+        <div class="grid">
+            <a href="cars/inspections.html" class="card">
+                <h3>Buyer's Checklist</h3>
+                <p>Interactive guide for inspecting a used vehicle before purchase.</p>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
