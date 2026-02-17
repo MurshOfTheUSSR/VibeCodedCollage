@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Calculate the true monthly cost of your first car. Includes loans, gas, insurance, and maintenance estimates.">
+    
+    <!-- Open Graph for Social Sharing (Makes it look good on GitHub/Discord) -->
+    <meta property="og:title" content="First Car Affordability Calculator">
+    <meta property="og:description" content="Can you really afford that car? Calculate the true monthly cost instantly.">
+    <meta property="og:type" content="website">
+    
+    <!-- Embedded Favicon (No external file needed) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚗</text></svg>">
+
+    <title>First Car Affordability Calculator</title>
+    
+    <!-- React & ReactDOM (UMD for standalone usage) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (Compiles JSX in the browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS (Styling) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-dark {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            transition: all 0.2s;
+        }
+        .input-dark:focus {
+            border-color: #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .gauge-needle {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: bottom center;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- THE "EVERY CAR" ENGINE V2 ---
+        // Enhanced coverage and smarter depreciation curves
+        
+        const MANUFACTURERS = {
+            "Toyota": [
+                { model: "Corolla", start: 1985, type: "eco", baseMpg: 30, msrp: 22000, maint: 0.6 },
+                { model: "Camry", start: 1985, type: "sedan", baseMpg: 28, msrp: 27000, maint: 0.7 },
+                { model: "RAV4", start: 1996, type: "suv", baseMpg: 26, msrp: 29000, maint: 0.75 },
+                { model: "Prius", start: 2001, type: "hybrid", baseMpg: 48, msrp: 26000, maint: 0.65 },
+                { model: "Tacoma", start: 1995, type: "truck", baseMpg: 19, msrp: 32000, maint: 0.5 }, // Tacomas hold value insanely well
+                { model: "4Runner", start: 1985, type: "suv", baseMpg: 17, msrp: 38000, maint: 0.6 }, // 4Runners too
+                { model: "Tundra", start: 2000, type: "truck", baseMpg: 15, msrp: 40000, maint: 0.9 },
+                { model: "Supra", start: 1986, end: 2002, type: "legend", baseMpg: 18, msrp: 45000, maint: 1.5 },
+                { model: "Supra", start: 2020, type: "sport", baseMpg: 25, msrp: 55000, maint: 1.5 },
+                { model: "Celica", start: 1985, end: 2005, type: "sport", baseMpg: 26, msrp: 22000, maint: 1.0 },
+                { model: "MR2", start: 1985, end: 2005, type: "sport", baseMpg: 24, msrp: 25000, maint: 1.2 },
+                { model: "Land Cruiser", start: 1985, type: "legend", baseMpg: 13, msrp: 85000, maint: 1.5 }
+            ],
+            "Honda": [
+                { model: "Civic", start: 1985, type: "eco", baseMpg: 31, msrp: 23000, maint: 0.65 },
+                { model: "Accord", start: 1985, type: "sedan", baseMpg: 29, msrp: 28000, maint: 0.75 },
+                { model: "CR-V", start: 1997, type: "suv", baseMpg: 27, msrp: 30000, maint: 0.75 },
+                { model: "Pilot", start: 2003, type: "suv", baseMpg: 20, msrp: 37000, maint: 0.85 },
+                { model: "Prelude", start: 1985, end: 2001, type: "sport", baseMpg: 24, msrp: 24000, maint: 1.1 },
+                { model: "S2000", start: 2000, end: 2009, type: "legend", baseMpg: 22, msrp: 35000, maint: 1.3 }
+            ],
+            "Ford": [
+                { model: "F-150", start: 1985, type: "truck", baseMpg: 15, msrp: 35000, maint: 1.0 },
+                { model: "Mustang", start: 1985, type: "sport", baseMpg: 17, msrp: 32000, maint: 1.2 }, // GTs drag avg mpg down
+                { model: "Focus", start: 2000, end: 2018, type: "eco", baseMpg: 29, msrp: 20000, maint: 1.1 },
+                { model: "Fusion", start: 2006, end: 2020, type: "sedan", baseMpg: 25, msrp: 24000, maint: 1.0 },
+                { model: "Explorer", start: 1991, type: "suv", baseMpg: 17, msrp: 36000, maint: 1.1 },
+                { model: "Ranger", start: 1985, type: "truck", baseMpg: 20, msrp: 26000, maint: 0.9 },
+                { model: "Bronco", start: 1985, end: 1996, type: "legend", baseMpg: 13, msrp: 30000, maint: 1.2 },
+                { model: "Crown Victoria", start: 1992, end: 2011, type: "sedan", baseMpg: 16, msrp: 28000, maint: 0.8 }
+            ],
+            "Chevrolet": [
+                { model: "Silverado", start: 1999, type: "truck", baseMpg: 15, msrp: 36000, maint: 1.0 },
+                { model: "Camaro", start: 1985, type: "sport", baseMpg: 18, msrp: 31000, maint: 1.3 },
+                { model: "Corvette", start: 1985, type: "legend", baseMpg: 17, msrp: 65000, maint: 1.8 },
+                { model: "Malibu", start: 1997, type: "sedan", baseMpg: 26, msrp: 24000, maint: 1.0 },
+                { model: "Impala", start: 1994, end: 2020, type: "sedan", baseMpg: 21, msrp: 28000, maint: 1.0 },
+                { model: "Tahoe", start: 1995, type: "suv", baseMpg: 14, msrp: 50000, maint: 1.2 },
+                { model: "Suburban", start: 1985, type: "suv", baseMpg: 13, msrp: 54000, maint: 1.2 }
+            ],
+            "Nissan": [
+                { model: "Altima", start: 1993, type: "sedan", baseMpg: 27, msrp: 25000, maint: 1.2 }, // Higher maint due to CVT history
+                { model: "Sentra", start: 1985, type: "eco", baseMpg: 29, msrp: 20000, maint: 1.0 },
+                { model: "Maxima", start: 1985, type: "sedan", baseMpg: 23, msrp: 34000, maint: 1.1 },
+                { model: "Rogue", start: 2008, type: "suv", baseMpg: 26, msrp: 28000, maint: 1.1 },
+                { model: "300ZX", start: 1985, end: 1996, type: "legend", baseMpg: 18, msrp: 45000, maint: 1.6 },
+                { model: "350Z", start: 2003, end: 2008, type: "sport", baseMpg: 19, msrp: 35000, maint: 1.4 },
+                { model: "370Z", start: 2009, end: 2020, type: "sport", baseMpg: 20, msrp: 38000, maint: 1.4 },
+                { model: "GT-R", start: 2009, type: "super", baseMpg: 16, msrp: 110000, maint: 3.0 },
+                { model: "Skyline", start: 1989, end: 2002, type: "legend", baseMpg: 18, msrp: 50000, maint: 2.0 }
+            ],
+            "BMW": [
+                { model: "3 Series", start: 1985, type: "luxury", baseMpg: 23, msrp: 45000, maint: 2.0 },
+                { model: "5 Series", start: 1985, type: "luxury", baseMpg: 21, msrp: 58000, maint: 2.2 },
+                { model: "M3", start: 1986, type: "legend", baseMpg: 17, msrp: 70000, maint: 2.5 },
+                { model: "X3", start: 2004, type: "luxury", baseMpg: 20, msrp: 48000, maint: 1.9 },
+                { model: "X5", start: 2000, type: "luxury", baseMpg: 18, msrp: 65000, maint: 2.5 }
+            ],
+            "Audi": [
+                { model: "A4", start: 1994, type: "luxury", baseMpg: 24, msrp: 42000, maint: 2.1 },
+                { model: "A6", start: 1994, type: "luxury", baseMpg: 22, msrp: 55000, maint: 2.3 },
+                { model: "Q5", start: 2008, type: "luxury", baseMpg: 22, msrp: 45000, maint: 2.1 },
+                { model: "TT", start: 1998, type: "sport", baseMpg: 24, msrp: 40000, maint: 2.0 }
+            ],
+            "Mercedes-Benz": [
+                { model: "C-Class", start: 1994, type: "luxury", baseMpg: 22, msrp: 46000, maint: 2.0 },
+                { model: "E-Class", start: 1985, type: "luxury", baseMpg: 20, msrp: 62000, maint: 2.2 },
+                { model: "S-Class", start: 1985, type: "luxury", baseMpg: 17, msrp: 100000, maint: 3.0 }
+            ],
+            "Lexus": [
+                { model: "IS", start: 2000, type: "luxury", baseMpg: 22, msrp: 40000, maint: 1.2 }, // Reliable luxury
+                { model: "ES", start: 1989, type: "luxury", baseMpg: 24, msrp: 42000, maint: 1.0 },
+                { model: "RX", start: 1998, type: "luxury", baseMpg: 21, msrp: 48000, maint: 1.1 },
+                { model: "LS", start: 1989, type: "luxury", baseMpg: 19, msrp: 75000, maint: 1.5 }
+            ],
+            "Acura": [
+                { model: "Integra", start: 1986, end: 2001, type: "sport", baseMpg: 25, msrp: 22000, maint: 1.0 },
+                { model: "RSX", start: 2002, end: 2006, type: "sport", baseMpg: 25, msrp: 24000, maint: 1.0 },
+                { model: "TL", start: 1995, end: 2014, type: "luxury", baseMpg: 22, msrp: 35000, maint: 1.2 },
+                { model: "MDX", start: 2000, type: "luxury", baseMpg: 19, msrp: 45000, maint: 1.3 },
+                { model: "NSX", start: 1990, end: 2005, type: "legend", baseMpg: 20, msrp: 80000, maint: 2.0 }
+            ],
+            "Infiniti": [
+                { model: "G35", start: 2003, end: 2008, type: "sport", baseMpg: 19, msrp: 35000, maint: 1.5 },
+                { model: "G37", start: 2008, end: 2013, type: "sport", baseMpg: 19, msrp: 38000, maint: 1.5 },
+                { model: "Q50", start: 2013, type: "luxury", baseMpg: 22, msrp: 42000, maint: 1.6 }
+            ],
+            "Subaru": [
+                { model: "Impreza", start: 1993, type: "sedan", baseMpg: 26, msrp: 22000, maint: 1.1 },
+                { model: "Outback", start: 1995, type: "wagon", baseMpg: 24, msrp: 29000, maint: 1.2 },
+                { model: "Forester", start: 1998, type: "suv", baseMpg: 24, msrp: 27000, maint: 1.2 },
+                { model: "WRX", start: 2002, type: "sport", baseMpg: 20, msrp: 30000, maint: 1.6 },
+                { model: "WRX STI", start: 2004, type: "sport", baseMpg: 17, msrp: 38000, maint: 1.8 }
+            ],
+            "Volkswagen": [
+                { model: "Jetta", start: 1985, type: "sedan", baseMpg: 28, msrp: 22000, maint: 1.4 },
+                { model: "Golf", start: 1985, type: "hatch", baseMpg: 28, msrp: 24000, maint: 1.4 },
+                { model: "GTI", start: 1985, type: "sport", baseMpg: 25, msrp: 28000, maint: 1.5 }
+            ],
+            "Jeep": [
+                { model: "Wrangler", start: 1987, type: "legend", baseMpg: 16, msrp: 32000, maint: 1.1 }, // Wranglers keep value
+                { model: "Cherokee", start: 1985, end: 2001, type: "legend", baseMpg: 17, msrp: 25000, maint: 1.0 }, // XJ
+                { model: "Grand Cherokee", start: 1993, type: "suv", baseMpg: 16, msrp: 42000, maint: 1.3 }
+            ],
+            "Dodge": [
+                { model: "Charger", start: 2006, type: "sedan", baseMpg: 18, msrp: 32000, maint: 1.3 },
+                { model: "Challenger", start: 2008, type: "sport", baseMpg: 17, msrp: 34000, maint: 1.3 },
+                { model: "Ram 1500", start: 1985, end: 2010, type: "truck", baseMpg: 13, msrp: 35000, maint: 1.2 },
+                { model: "Viper", start: 1992, end: 2017, type: "super", baseMpg: 11, msrp: 90000, maint: 2.5 }
+            ],
+            "Pontiac": [
+                { model: "Firebird", start: 1985, end: 2002, type: "sport", baseMpg: 17, msrp: 28000, maint: 1.3 },
+                { model: "Grand Prix", start: 1985, end: 2008, type: "sedan", baseMpg: 20, msrp: 26000, maint: 1.2 },
+                { model: "GTO", start: 2004, end: 2006, type: "sport", baseMpg: 16, msrp: 33000, maint: 1.4 }
+            ],
+            "Mazda": [
+                { model: "Mazda3", start: 2004, type: "eco", baseMpg: 30, msrp: 22000, maint: 0.9 },
+                { model: "Miata", start: 1990, type: "legend", baseMpg: 26, msrp: 28000, maint: 0.9 },
+                { model: "RX-7", start: 1985, end: 2002, type: "legend", baseMpg: 16, msrp: 38000, maint: 2.5 },
+                { model: "RX-8", start: 2003, end: 2011, type: "sport", baseMpg: 17, msrp: 32000, maint: 2.5 }
+            ],
+            "Mitsubishi": [
+                { model: "Eclipse", start: 1990, end: 2012, type: "sport", baseMpg: 23, msrp: 24000, maint: 1.3 },
+                { model: "Lancer", start: 2002, end: 2017, type: "sedan", baseMpg: 26, msrp: 19000, maint: 1.1 },
+                { model: "Lancer Evolution", start: 2003, end: 2015, type: "legend", baseMpg: 18, msrp: 36000, maint: 1.8 }
+            ],
+            "Cadillac": [
+                { model: "Escalade", start: 1999, type: "luxury", baseMpg: 13, msrp: 70000, maint: 1.8 },
+                { model: "CTS", start: 2003, end: 2019, type: "luxury", baseMpg: 20, msrp: 45000, maint: 1.6 }
+            ]
+        };
+
+        // --- ICONS ---
+        const Icons = {
+            Car: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M14 6l7.5 6.5"/></svg>,
+            Gas: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><box points="3 6 3 22 15 22 15 6 3 6"/><path d="M14 11h6"/><path d="M14 16h6"/><path d="M20 11v5"/><path d="M10 2a2 2 0 0 0-2 2v2h4V4a2 2 0 0 0-2-2z"/></svg>,
+            Money: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+            Alert: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+        };
+
+        function App() {
+            // --- STATE ---
+            const [searchQuery, setSearchQuery] = useState("");
+            const [searchResults, setSearchResults] = useState([]);
+            const [selectedCar, setSelectedCar] = useState(null);
+
+            const [inputs, setInputs] = useState({
+                carPrice: 15000,
+                downPayment: 3000,
+                interestRate: 7.5,
+                loanTerm: 60,
+                insurance: 180,
+                milesPerMonth: 1000,
+                mpg: 28,
+                gasPrice: 3.50,
+                maintenance: 50,
+                monthlyIncome: 3200,
+                userBudget: 500,
+                savings: 6000
+            });
+
+            // --- REALISTIC GENERATION ENGINE ---
+            const generateCarData = (make, data, year) => {
+                const age = 2025 - year;
+                
+                // 1. DEPRECIATION LOGIC
+                // Normal cars: Exponential decay to a low floor
+                // Legend/Sport cars: 'U' curve. Drop hard, hit a high floor, then appreciate.
+                
+                let estimatedPrice = 0;
+                
+                if (data.type === 'legend' || data.type === 'super') {
+                    // Sports/Enthusiast Curve
+                    // Drop to ~30-40% of MSRP at year 15, then rise
+                    let deprecFactor = Math.pow(0.90, age); // Slower depreciation
+                    if (age > 20) {
+                        // Appreciation phase for classics
+                        const appreciationYears = age - 20;
+                        deprecFactor = Math.pow(0.90, 20) * Math.pow(1.04, appreciationYears);
+                    }
+                    estimatedPrice = data.msrp * deprecFactor;
+                    
+                    // High floor for legends (Corvettes, Supras don't go below ~10k often)
+                    const floor = data.type === 'super' ? 25000 : 8000;
+                    if (estimatedPrice < floor) estimatedPrice = floor;
+
+                } else if (data.type === 'truck' || data.model === 'Wrangler' || data.model === 'Tacoma') {
+                    // Truck Tax Curve (very slow depreciation)
+                    let deprecFactor = Math.pow(0.93, age); 
+                    estimatedPrice = data.msrp * deprecFactor;
+                    const floor = 6000; // Trucks hold value
+                    if (estimatedPrice < floor) estimatedPrice = floor;
+
+                } else if (data.type === 'luxury') {
+                    // Luxury cliff (fast drop)
+                    let deprecFactor = Math.pow(0.85, age);
+                    estimatedPrice = data.msrp * deprecFactor;
+                    const floor = 4000;
+                    if (estimatedPrice < floor) estimatedPrice = floor;
+
+                } else {
+                    // Standard Economy Curve
+                    let deprecFactor = Math.pow(0.87, age);
+                    estimatedPrice = data.msrp * deprecFactor;
+                    const floor = 3500; // Running driving car floor
+                    if (estimatedPrice < floor) estimatedPrice = floor;
+                }
+
+                // Round to nearest 500
+                estimatedPrice = Math.round(estimatedPrice / 500) * 500;
+
+                // 2. MAINTENANCE LOGIC
+                // Goes up with age
+                const ageMaintFactor = 1 + (age * 0.04); 
+                const estimatedMaint = 50 * data.maint * ageMaintFactor;
+
+                // 3. INSURANCE LOGIC
+                // Young driver bias
+                const baseInsurance = 160;
+                let estimatedIns = baseInsurance;
+                if (data.type === 'sport' || data.type === 'legend' || data.type === 'super') estimatedIns *= 1.5;
+                if (data.type === 'luxury') estimatedIns *= 1.3;
+                if (data.type === 'suv' || data.type === 'truck') estimatedIns *= 0.95;
+                
+                return {
+                    id: `${make}-${data.model}-${year}`,
+                    make,
+                    model: data.model,
+                    year,
+                    price: estimatedPrice,
+                    mpg: data.baseMpg,
+                    maint: Math.round(estimatedMaint),
+                    ins: Math.round(estimatedIns)
+                };
+            };
+
+            // Search Filter
+            useEffect(() => {
+                if (searchQuery.length < 2) {
+                    setSearchResults([]);
+                    return;
+                }
+
+                // 1. Detect Year in search
+                const yearMatch = searchQuery.match(/\b(19|20)\d{2}\b/);
+                const searchYear = yearMatch ? parseInt(yearMatch[0]) : null;
+                
+                // 2. Clean query for text search
+                const textQuery = searchQuery.replace(/\b(19|20)\d{2}\b/, '').toLowerCase().trim();
+                
+                const results = [];
+                
+                // 3. Scan Manufacturers
+                Object.keys(MANUFACTURERS).forEach(make => {
+                    MANUFACTURERS[make].forEach(carData => {
+                        // Check if search matches Make or Model
+                        const fullName = `${make} ${carData.model}`.toLowerCase();
+                        if (fullName.includes(textQuery)) {
+                            
+                            // If user typed a year, check if valid for this model
+                            if (searchYear) {
+                                const end = carData.end || 2025;
+                                if (searchYear >= carData.start && searchYear <= end) {
+                                    results.push(generateCarData(make, carData, searchYear));
+                                }
+                            } else {
+                                // If no year typed, offer a diversity of years
+                                const end = carData.end || 2025;
+                                const yearsToShow = [end, end-3, end-8, carData.start+5, carData.start].filter(y => {
+                                    return y >= carData.start && y <= end;
+                                });
+                                // Remove duplicates and sort descending
+                                const uniqueYears = [...new Set(yearsToShow)].sort((a,b) => b-a);
+                                
+                                uniqueYears.forEach(y => {
+                                    results.push(generateCarData(make, carData, y));
+                                });
+                            }
+                        }
+                    });
+                });
+
+                setSearchResults(results.slice(0, 10)); // Limit results
+            }, [searchQuery]);
+
+            // --- HANDLERS ---
+
+            const handleCarSelect = (car) => {
+                setSelectedCar(car);
+                setSearchQuery(`${car.year} ${car.make} ${car.model}`);
+                setSearchResults([]);
+
+                setInputs(prev => ({
+                    ...prev,
+                    carPrice: car.price,
+                    mpg: car.mpg,
+                    maintenance: car.maint,
+                    insurance: car.ins
+                }));
+            };
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setInputs(prev => ({
+                    ...prev,
+                    [name]: parseFloat(value) || 0
+                }));
+            };
+
+            // --- CALCULATIONS ---
+
+            const monthlyLoan = useMemo(() => {
+                const principal = inputs.carPrice - inputs.downPayment;
+                if (principal <= 0) return 0;
+                const monthlyRate = (inputs.interestRate / 100) / 12;
+                if (monthlyRate === 0) return principal / inputs.loanTerm;
+                
+                return principal * (monthlyRate * Math.pow(1 + monthlyRate, inputs.loanTerm)) / (Math.pow(1 + monthlyRate, inputs.loanTerm) - 1);
+            }, [inputs.carPrice, inputs.downPayment, inputs.interestRate, inputs.loanTerm]);
+
+            const monthlyGas = useMemo(() => {
+                if (inputs.mpg === 0) return 0;
+                // Electric car handling
+                if (inputs.mpg > 90) return (inputs.milesPerMonth / inputs.mpg) * inputs.gasPrice * 0.3; 
+                return (inputs.milesPerMonth / inputs.mpg) * inputs.gasPrice;
+            }, [inputs.milesPerMonth, inputs.mpg, inputs.gasPrice]);
+
+            const trueMonthlyCost = monthlyLoan + monthlyGas + inputs.insurance + inputs.maintenance;
+            
+            const incomePercentage = inputs.monthlyIncome > 0 ? (trueMonthlyCost / inputs.monthlyIncome) * 100 : 0;
+            const remainingSavings = inputs.savings - inputs.downPayment;
+            const budgetDiff = inputs.userBudget - trueMonthlyCost;
+            
+            // Verdict Logic
+            let verdict = { status: "success", title: "Affordable", color: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/30" };
+            const warnings = [];
+
+            if (remainingSavings < 0) {
+                verdict = { status: "danger", title: "Unaffordable", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30" };
+                warnings.push("Insufficient savings for down payment.");
+            } else if (trueMonthlyCost > inputs.userBudget) {
+                verdict = { status: "danger", title: "Over Budget", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30" };
+                warnings.push(`Exceeds budget by $${Math.abs(budgetDiff).toFixed(0)}.`);
+            } else if (incomePercentage > 20) {
+                verdict = { status: "warning", title: "Caution", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/30" };
+                warnings.push("Costs > 20% of income.");
+            }
+
+            const getGaugeRotation = () => {
+                if(inputs.userBudget === 0) return 90;
+                const ratio = trueMonthlyCost / inputs.userBudget; 
+                let deg = (ratio - 1) * 90; 
+                if (deg < -90) deg = -90;
+                if (deg > 90) deg = 90;
+                return deg;
+            };
+
+
+            return (
+                <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
+                    
+                    {/* Header */}
+                    <header className="text-center mb-10">
+                        <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 mb-2">
+                            First Car Calculator
+                        </h1>
+                        <p className="text-slate-400">Search 30+ brands. Algorithmically generated market values.</p>
+                    </header>
+
+                    {/* Search Bar */}
+                    <div className="max-w-xl mx-auto mb-10 relative z-50">
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <Icons.Search />
+                            </div>
+                            <input
+                                type="text"
+                                className="w-full bg-slate-800 border border-slate-600 text-white rounded-xl py-4 pl-10 pr-4 shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-slate-500"
+                                placeholder="Try '96 Corvette', '2004 WRX', 'Tacoma', 'G35'..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {/* Autocomplete Dropdown */}
+                            {searchResults.length > 0 && (
+                                <div className="absolute w-full mt-2 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+                                    {searchResults.map(car => (
+                                        <div 
+                                            key={car.id}
+                                            onClick={() => handleCarSelect(car)}
+                                            className="px-4 py-3 hover:bg-slate-700 cursor-pointer flex justify-between items-center border-b border-slate-700/50 last:border-0"
+                                        >
+                                            <div>
+                                                <div className="font-semibold text-white">{car.year} {car.make} {car.model}</div>
+                                                <div className="text-xs text-slate-400">{car.mpg} MPG • Est. ${car.price.toLocaleString()}</div>
+                                            </div>
+                                            <div className="text-blue-400 text-sm font-medium">Select</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        
+                        {/* LEFT COLUMN: INPUTS */}
+                        <div className="lg:col-span-7 space-y-6">
+                            
+                            {/* Section: Vehicle & Loan */}
+                            <div className="glass-panel rounded-2xl p-6">
+                                <h3 className="flex items-center gap-2 text-lg font-semibold text-blue-400 mb-6">
+                                    <Icons.Car /> Vehicle & Loan
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Car Price ($)</label>
+                                        <input name="carPrice" type="number" value={inputs.carPrice} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Down Payment ($)</label>
+                                        <input name="downPayment" type="number" value={inputs.downPayment} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Interest Rate (%)</label>
+                                        <input name="interestRate" type="number" step="0.1" value={inputs.interestRate} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Loan Term (Months)</label>
+                                        <select name="loanTerm" value={inputs.loanTerm} onChange={handleChange} className="w-full input-dark rounded-lg p-3">
+                                            <option value="36">36 Months</option>
+                                            <option value="48">48 Months</option>
+                                            <option value="60">60 Months</option>
+                                            <option value="72">72 Months</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section: Running Costs */}
+                            <div className="glass-panel rounded-2xl p-6">
+                                <h3 className="flex items-center gap-2 text-lg font-semibold text-purple-400 mb-6">
+                                    <Icons.Gas /> Running Costs (Monthly)
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Est. Insurance ($)</label>
+                                        <input name="insurance" type="number" value={inputs.insurance} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Est. Maintenance ($)</label>
+                                        <input name="maintenance" type="number" value={inputs.maintenance} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Miles / Month</label>
+                                        <input name="milesPerMonth" type="number" value={inputs.milesPerMonth} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">MPG</label>
+                                        <input name="mpg" type="number" value={inputs.mpg} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Gas Price ($/G)</label>
+                                        <input name="gasPrice" type="number" step="0.01" value={inputs.gasPrice} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section: Budget */}
+                            <div className="glass-panel rounded-2xl p-6">
+                                <h3 className="flex items-center gap-2 text-lg font-semibold text-emerald-400 mb-6">
+                                    <Icons.Money /> Financial Health
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Monthly Income ($)</label>
+                                        <input name="monthlyIncome" type="number" value={inputs.monthlyIncome} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Current Savings ($)</label>
+                                        <input name="savings" type="number" value={inputs.savings} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-300">Target Car Budget ($/mo)</label>
+                                        <input name="userBudget" type="number" value={inputs.userBudget} onChange={handleChange} className="w-full input-dark rounded-lg p-3" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* RIGHT COLUMN: DASHBOARD */}
+                        <div className="lg:col-span-5 space-y-6">
+                            
+                            {/* Sticky Dashboard */}
+                            <div className="sticky top-6">
+                                
+                                {/* 1. The Gauge */}
+                                <div className="glass-panel rounded-2xl p-8 text-center relative overflow-hidden mb-6">
+                                    <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wider mb-6">Affordability Score</h3>
+                                    
+                                    {/* Gauge SVG */}
+                                    <div className="relative h-40 w-full flex justify-center items-end pb-4">
+                                        <div className="absolute w-64 h-32 rounded-t-full bg-slate-700 overflow-hidden">
+                                            {/* Green Zone */}
+                                            <div className="absolute bottom-0 left-0 w-full h-full bg-gradient-to-r from-emerald-500 via-yellow-400 to-red-500 opacity-20"></div>
+                                        </div>
+                                        {/* Needle */}
+                                        <div 
+                                            className="gauge-needle absolute bottom-4 w-1 h-36 bg-white rounded-full shadow-lg origin-bottom z-10"
+                                            style={{ transform: `rotate(${getGaugeRotation()}deg)` }}
+                                        ></div>
+                                        {/* Pivot */}
+                                        <div className="absolute bottom-2 w-6 h-6 bg-white rounded-full z-20 shadow-xl border-4 border-slate-800"></div>
+                                    </div>
+                                    
+                                    <div className={`mt-2 text-2xl font-bold ${verdict.color}`}>
+                                        {verdict.title}
+                                    </div>
+                                </div>
+
+                                {/* 2. Monthly Breakdown Card */}
+                                <div className="glass-panel rounded-2xl p-0 overflow-hidden">
+                                    <div className="p-6 bg-slate-800/50 border-b border-slate-700">
+                                        <div className="flex justify-between items-end">
+                                            <span className="text-slate-400 font-medium">True Monthly Cost</span>
+                                            <span className="text-4xl font-bold text-white">${trueMonthlyCost.toFixed(0)}</span>
+                                        </div>
+                                        <div className="text-right text-xs text-slate-500 mt-1">Target: ${inputs.userBudget}/mo</div>
+                                    </div>
+
+                                    <div className="p-6 space-y-4">
+                                        {/* Row */}
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                                <span className="text-slate-300">Loan Payment</span>
+                                            </div>
+                                            <span className="font-mono font-medium">${monthlyLoan.toFixed(0)}</span>
+                                        </div>
+                                        {/* Row */}
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                                                <span className="text-slate-300">Gas</span>
+                                            </div>
+                                            <span className="font-mono font-medium">${monthlyGas.toFixed(0)}</span>
+                                        </div>
+                                        {/* Row */}
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                                                <span className="text-slate-300">Insurance</span>
+                                            </div>
+                                            <span className="font-mono font-medium">${inputs.insurance}</span>
+                                        </div>
+                                        {/* Row */}
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-2 h-2 rounded-full bg-pink-500"></div>
+                                                <span className="text-slate-300">Maintenance</span>
+                                            </div>
+                                            <span className="font-mono font-medium">${inputs.maintenance}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Verdict Warnings */}
+                                    {warnings.length > 0 ? (
+                                        <div className="bg-red-500/10 border-t border-red-500/20 p-4">
+                                            {warnings.map((warn, i) => (
+                                                <div key={i} className="flex gap-2 items-start text-red-300 text-sm mb-1 last:mb-0">
+                                                    <Icons.Alert />
+                                                    <span>{warn}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="bg-emerald-500/10 border-t border-emerald-500/20 p-4">
+                                            <div className="flex gap-2 items-center text-emerald-300 text-sm">
+                                                <Icons.Check />
+                                                <span>You are within budget!</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 3. Stats Grid */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="glass-panel rounded-xl p-4 text-center">
+                                        <div className="text-xs text-slate-400 mb-1">Savings Left</div>
+                                        <div className={`text-lg font-bold ${remainingSavings < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                                            ${remainingSavings.toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <div className="glass-panel rounded-xl p-4 text-center">
+                                        <div className="text-xs text-slate-400 mb-1">Income Usage</div>
+                                        <div className={`text-lg font-bold ${incomePercentage > 20 ? 'text-yellow-400' : 'text-blue-400'}`}>
+                                            {incomePercentage.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
