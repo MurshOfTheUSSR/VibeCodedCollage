@@ -3,72 +3,282 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tool Suite | Dashboard</title>
+    <title>VibeCodedCollage | Tool Suite</title>
     <style>
-        :root { --neon: #00ff88; --bg: #0f0f0f; --card: #1a1a1a; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 40px; }
-        h1 { text-align: center; font-size: 2.5rem; letter-spacing: 2px; color: var(--neon); }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .section-title { border-bottom: 2px solid #333; margin: 40px 0 20px; padding-bottom: 10px; color: #aaa; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .card { background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 20px; 
-                text-decoration: none; color: white; transition: 0.3s; display: block; }
-        .card:hover { border-color: var(--neon); transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,255,136,0.1); }
-        .card h3 { margin: 0 0 10px 0; color: var(--neon); }
-        .card p { font-size: 0.9rem; color: #ccc; margin: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { 
+            --neon: #00ff88; 
+            --neon-dark: #00cc6f;
+            --bg: #0a0e27; 
+            --bg-alt: #0f1535;
+            --card: #141d3a; 
+            --text: #ffffff;
+            --text-muted: #a8b2d1;
+            --border: #1f2847;
+            --accent: #6366f1;
+            --purple: #8b5cf6;
+        }
+        
+        html, body { height: 100%; }
+        body { 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: linear-gradient(135deg, var(--bg) 0%, var(--bg-alt) 100%);
+            color: var(--text); 
+            overflow-x: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, rgba(0,255,136,0.05) 0%, rgba(139,92,246,0.05) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 60px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(0,255,136,0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(139,92,246,0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .header-content { position: relative; z-index: 1; }
+        
+        h1 { 
+            font-size: 3.5rem; 
+            font-weight: 800;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, var(--neon) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+        
+        .tagline {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            font-weight: 300;
+            letter-spacing: 0.5px;
+        }
+        
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 40px 20px;
+        }
+        
+        .section {
+            margin-bottom: 60px;
+        }
+        
+        .section-title { 
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(180deg, var(--neon) 0%, var(--accent) 100%);
+            border-radius: 2px;
+        }
+        
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+            gap: 24px;
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card { 
+            background: linear-gradient(135deg, var(--card) 0%, rgba(20, 29, 58, 0.6) 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            text-decoration: none; 
+            color: var(--text); 
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,255,136,0.1) 0%, rgba(139,92,246,0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.35s ease-out;
+        }
+        
+        .card:hover { 
+            border-color: var(--neon);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0,255,136,0.15);
+        }
+        
+        .card:hover::before {
+            opacity: 1;
+        }
+        
+        .card h3 { 
+            margin: 0 0 12px 0; 
+            color: var(--neon);
+            font-size: 1.25rem;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .card p { 
+            font-size: 0.95rem; 
+            color: var(--text-muted); 
+            margin: 0;
+            line-height: 1.5;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .upload-section {
+            text-align: center;
+            margin-top: 50px;
+            padding: 40px;
+            background: linear-gradient(135deg, rgba(0,255,136,0.05) 0%, rgba(139,92,246,0.05) 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+        
+        .upload-section h2 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+        
+        #openUploader {
+            background: linear-gradient(135deg, var(--neon) 0%, var(--neon-dark) 100%);
+            color: #001;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1rem;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 8px 24px rgba(0,255,136,0.2);
+        }
+        
+        #openUploader:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(0,255,136,0.3);
+        }
+        
+        #openUploader:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>PROJECT COLLAGE</h1>
-
-        <div class="section-title">Counter-Strike 2</div>
-        <div class="grid">
-            <a href="cs2/econ-calc.html" class="card">
-                <h3>Economy Calculator</h3>
-                <p>Track enemy loss bonuses and predicts their next buy round.</p>
-            </a>
-        </div>
-
-        <div class="section-title">Swimming</div>
-        <div class="grid">
-            <a href="swimming/pace-conv.html" class="card">
-                <h3>Pace Converter</h3>
-                <p>Convert Short Course Yards to Long Course Meters instantly.</p>
-            </a>
-        </div>
-
-        <div class="section-title">First Car</div>
-        <div class="grid">
-            <a href="cars/inspections.html" class="card">
-                <h3>Buyer's Checklist</h3>
-                <p>Interactive guide for inspecting a used vehicle before purchase.</p>
-            </a>
-        </div>
-        <div class="section-title">Uploaded Pages</div>
-        <div class="grid" id="uploadedGrid">
-            <!-- Uploaded pages will be populated here -->
-        </div>
-            <div style="margin-top:30px; text-align:center;">
-                <button id="openUploader" style="background:var(--neon); color:#001; border:none; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:600;">Upload New Page</button>
-            </div>
-        </div>
-</body>
-    <div id="uploaderModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:9999;">
-        <div style="background:#0b0b0b; color:#fff; padding:18px; border-radius:10px; width:min(900px,95%); max-height:90vh; overflow:auto; border:1px solid #222;">
-            <h2 style="margin-top:0; color:var(--neon);">Paste HTML for new page</h2>
-            <div style="display:flex; gap:12px; margin-bottom:8px; align-items:center;">
-                <label style="min-width:80px; color:#ccc;">Filename</label>
-                <input id="newFilename" placeholder="example.html" style="flex:1; padding:8px; border-radius:6px; border:1px solid #333; background:#111; color:#fff;">
-            </div>
-            <textarea id="newContent" placeholder="Paste full HTML here" style="width:100%; height:320px; padding:12px; background:#070707; color:#ddd; border:1px solid #222; border-radius:8px;"></textarea>
-            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
-                <button id="cancelUpload" style="background:#222; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">Cancel</button>
-                <button id="submitUpload" style="background:var(--neon); color:#001; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:700;">Save Page</button>
-            </div>
-            <div id="uploadMessage" style="margin-top:10px; color:#9f9; display:none;"></div>
+    <div class="header">
+        <div class="header-content">
+            <h1>VibeCodedCollage</h1>
+            <p class="tagline">A collection of interactive tools and utilities</p>
         </div>
     </div>
+    
+    <div class="container">
+        <div class="section">
+            <h2 class="section-title">Gaming</h2>
+            <div class="grid">
+
+                <a href="cs2/econ-calc.html" class="card">
+                    <h3>Economy Calculator</h3>
+                    <p>Track enemy loss bonuses and predict their next buy round with precision.</p>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Sports</h2>
+            <div class="grid">
+                <a href="swimming/pace-conv.html" class="card">
+                    <h3>Pace Converter</h3>
+                    <p>Convert swimming paces between Short Course Yards and Long Course Meters instantly.</p>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Automotive</h2>
+            <div class="grid">
+                <a href="cars/inspections.html" class="card">
+                    <h3>Buyer's Checklist</h3>
+                    <p>Interactive guide for inspecting a used vehicle before purchase—comprehensive and detailed.</p>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Community Uploads</h2>
+            <div class="grid" id="uploadedGrid">
+                <!-- Uploaded pages will be populated here -->
+            </div>
+        </div>
+
+        <div class="upload-section">
+            <h2>Share Your Tool</h2>
+            <p style="color: var(--text-muted); margin-bottom: 24px;">Have a tool or page to share? Paste it below and add it to the collection.</p>
+            <p id="uploadStatusText" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+                <!-- Will show GitHub/Local upload status -->
+            </p>
+            <button id="openUploader">+ Upload New Page</button>
+        </div>
+    </div>
+
+    <div id="uploaderModal" style="display:none; position:fixed; inset:0; background:rgba(10,14,39,0.8); backdrop-filter:blur(4px); align-items:center; justify-content:center; z-index:9999; animation: fadeModalIn 0.3s ease-out;">
+        <div style="background:linear-gradient(135deg, var(--card) 0%, rgba(20,29,58,0.8) 100%); color:var(--text); padding:32px; border-radius:16px; width:min(620px,95%); max-height:90vh; overflow:auto; border:1px solid var(--border); box-shadow:0 25px 50px rgba(0,0,0,0.5); animation: slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1);">
+            <h2 style="margin-top:0; margin-bottom:24px; color:var(--neon); font-size:1.5rem;">Share Your Creation</h2>
+            <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
+                <label style="min-width:100px; color:var(--text-muted); font-weight:600;">Filename</label>
+                <input id="newFilename" placeholder="my-tool.html" style="flex:1; padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:1rem;">
+            </div>
+            <textarea id="newContent" placeholder="Paste your full HTML code here..." style="width:100%; height:320px; padding:12px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:8px; font-family:monospace; font-size:0.9rem; resize:none;"></textarea>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button id="cancelUpload" style="background:var(--bg-alt); color:var(--text); border:1px solid var(--border); padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:600; transition:all 0.2s;">Cancel</button>
+                <button id="submitUpload" style="background:linear-gradient(135deg, var(--neon) 0%, var(--neon-dark) 100%); color:#001; border:none; padding:10px 24px; border-radius:8px; cursor:pointer; font-weight:700; box-shadow:0 8px 24px rgba(0,255,136,0.2); transition:all 0.3s;">Save & Share</button>
+            </div>
+            <div id="uploadMessage" style="margin-top:16px; color:#9f9; display:none; display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(0,255,136,0.1); border-radius:8px; border:1px solid rgba(0,255,136,0.2);"><span id="uploadMessageText"></span><button id="nextButton" style="background:var(--neon); color:#001; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:700; display:none;">Continue</button></div>
+        </div>
+    </div>
+    
+    <style>
+        @keyframes fadeModalIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
 
     <script>
     (function(){
@@ -79,12 +289,25 @@
         const filenameInput = document.getElementById('newFilename');
         const contentInput = document.getElementById('newContent');
         const msg = document.getElementById('uploadMessage');
+        const nextBtn = document.getElementById('nextButton');
+        const msgText = document.getElementById('uploadMessageText');
 
         openBtn.addEventListener('click', ()=>{
             modal.style.display = 'flex';
             filenameInput.focus();
         });
-        cancelBtn.addEventListener('click', ()=>{ modal.style.display='none'; msg.style.display='none'; });
+        
+        modal.addEventListener('click', (e)=>{
+            if(e.target === modal) modal.style.display='none';
+        });
+        
+        cancelBtn.addEventListener('click', ()=>{ 
+            modal.style.display='none'; 
+            msg.style.display='none'; 
+            nextBtn.style.display='none';
+            filenameInput.value='';
+            contentInput.value='';
+        });
 
         function sanitizeFilename(name){
             if(!name) return '';
@@ -100,6 +323,7 @@
             if(!fname){ alert('Please provide a filename.'); return; }
             if(!content){ alert('Please paste HTML content.'); return; }
             msg.style.display='none';
+            nextBtn.style.display='none';
 
             // Try saving via local uploader server first
             try{
@@ -109,9 +333,15 @@
                 });
                 const j = await res.json();
                 if(res.ok){
-                    msg.style.color = '#9f9'; msg.style.display='block'; msg.textContent = 'Saved to ' + j.path + ' — open it in your browser.';
+                    msg.style.color = '#9f9'; msg.style.display='flex';
+                    if (j.github) {
+                        msgText.textContent = '✓ Uploaded to GitHub: ' + j.path;
+                    } else {
+                        msgText.textContent = '✓ Saved locally: ' + j.path;
+                    }
+                    nextBtn.style.display='block';
                 } else {
-                    msg.style.color = '#f99'; msg.style.display='block'; msg.textContent = j.error || 'Upload failed.';
+                    msg.style.color = '#f99'; msg.style.display='flex'; msgText.textContent = j.error || 'Upload failed.'; nextBtn.style.display='none';
                 }
             } catch(e){
                 // Fallback: offer download
@@ -122,13 +352,57 @@
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
-                msg.style.color = '#ffb'; msg.style.display='block'; msg.textContent = 'No local server detected — downloaded the file instead.';
+                msg.style.color = '#ffb'; msg.style.display='flex'; msgText.textContent = '⬇ Downloaded as ' + fname; nextBtn.style.display='none';
             }
+        });
+
+        nextBtn.addEventListener('click', async ()=>{
+            modal.style.display='none';
+            msg.style.display='none';
+            nextBtn.style.display='none';
+            filenameInput.value = '';
+            contentInput.value = '';
+            // Refresh the uploaded pages list
+            try{
+                const res = await fetch('/pages/list.json');
+                if(!res.ok) return;
+                const list = await res.json();
+                const grid = document.getElementById('uploadedGrid');
+                if(!grid || !Array.isArray(list)) return;
+                grid.innerHTML = '';
+                list.forEach(f => {
+                    const a = document.createElement('a');
+                    a.href = '/pages/' + encodeURIComponent(f);
+                    a.className = 'card';
+                    const h = document.createElement('h3');
+                    h.textContent = f;
+                    const p = document.createElement('p');
+                    p.textContent = 'Community upload • Click to view';
+                    a.appendChild(h);
+                    a.appendChild(p);
+                    grid.appendChild(a);
+                });
+            }catch(e){}
         });
     })();
     </script>
     <script>
-    (async function(){
+    // Check server status and show upload method
+    (async () => {
+        try {
+            const res = await fetch('/upload-status');
+            if (res.ok) {
+                const data = await res.json();
+                const statusEl = document.getElementById('uploadStatusText');
+                if (data.githubEnabled) {
+                    statusEl.textContent = '🚀 Uploads go directly to GitHub repository';
+                } else {
+                    statusEl.textContent = '💾 Uploads save locally to this server';
+                }
+            }
+        } catch (e) {}
+    })();
+    </script>
         try{
             const res = await fetch('/pages/list.json');
             if(!res.ok) return;
@@ -143,12 +417,8 @@
                 const h = document.createElement('h3');
                 h.textContent = f;
                 const p = document.createElement('p');
-                p.textContent = 'Uploaded page';
+                p.textContent = 'Community upload • Click to view';
                 a.appendChild(h);
                 a.appendChild(p);
-                grid.appendChild(a);
-            });
-        }catch(e){}
-    })();
-    </script>
+</body>
 </html>
