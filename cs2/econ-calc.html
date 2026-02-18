@@ -2,32 +2,437 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CS2 Econ Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CS2 Smart Economy Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; padding: 20px; text-align: center; }
-        .tool-box { background: #1e1e1e; max-width: 400px; margin: 0 auto; padding: 30px; border-radius: 15px; border: 1px solid #444; }
-        button { background: #00ff88; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; margin: 5px; }
-        .money-display { font-size: 2rem; color: #00ff88; margin: 20px 0; }
-        .back-btn { display: inline-block; margin-top: 20px; color: #888; text-decoration: none; }
+        :root {
+            --bg-dark: #0f0f10;
+            --panel-bg: #18181b;
+            --accent-t: #eab308;
+            --accent-ct: #60a5fa;
+            --text-main: #f4f4f5;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            -webkit-overflow-scrolling: touch; 
+        }
+        .font-tech { font-family: 'Rajdhani', sans-serif; }
+        
+        .btn-action {
+            transition: all 0.1s ease-out;
+            position: relative;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        .btn-action:active { transform: scale(0.97); }
+
+        .history-scroll::-webkit-scrollbar { height: 4px; }
+        .history-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: slideIn 0.3s ease-out forwards; }
+        .btn-disabled { opacity: 0.3; pointer-events: none; filter: grayscale(1); }
+        
+        .theme-t .text-accent { color: var(--accent-t); }
+        .theme-ct .text-accent { color: var(--accent-ct); }
+
+        /* Survivor Icon Styles */
+        .survivor-slot {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: grayscale(1) opacity(0.3);
+        }
+        .survivor-slot.active {
+            filter: grayscale(0) opacity(1);
+            transform: scale(1.1);
+        }
+        .theme-t .survivor-slot.active { color: var(--accent-t); drop-shadow: 0 0 8px var(--accent-t); }
+        .theme-ct .survivor-slot.active { color: var(--accent-ct); drop-shadow: 0 0 8px var(--accent-ct); }
     </style>
 </head>
-<body>
-    <div class="tool-box">
-        <h2>Enemy Economy Tracker</h2>
-        <p>Loss Streak: <span id="streak">0</span></p>
-        <div class="money-display">+$<span id="payout">1400</span></div>
-        <button onclick="changeStreak(1)">Round Lost</button>
-        <button onclick="changeStreak(-5)">Round Won (Reset)</button>
-        <p style="font-size: 0.8rem; color: #888; margin-top: 15px;">Next round minimum payout if they lose again.</p>
-        <a href="../index.html" class="back-btn">← Back to Dashboard</a>
+<body class="min-h-screen w-full flex flex-col items-center pb-6">
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="fixed inset-0 z-50 bg-zinc-950 flex flex-col items-center justify-center p-6 transition-opacity duration-300">
+        <h1 class="text-5xl font-bold font-tech mb-2 text-white">CS2 <span class="text-yellow-500">ECO</span>TRACK</h1>
+        <p class="text-zinc-500 mb-8 text-sm uppercase tracking-widest">Match State & Economy Engine</p>
+        
+        <div class="space-y-4 w-full max-w-sm">
+            <p class="text-white font-semibold text-center">Select Enemy Starting Side:</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="startGame('T')" class="p-6 rounded-xl bg-zinc-900 border-2 border-zinc-800 hover:border-yellow-500 hover:bg-zinc-800 transition group btn-action">
+                    <span class="text-3xl font-bold text-yellow-500 group-hover:text-yellow-400">T</span>
+                    <div class="text-xs text-zinc-500 mt-1">TERRORIST</div>
+                </button>
+                <button onclick="startGame('CT')" class="p-6 rounded-xl bg-zinc-900 border-2 border-zinc-800 hover:border-blue-500 hover:bg-zinc-800 transition group btn-action">
+                    <span class="text-3xl font-bold text-blue-500 group-hover:text-blue-400">CT</span>
+                    <div class="text-xs text-zinc-500 mt-1">COUNTER-T</div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="dashboard" class="hidden w-full max-w-md flex-1 flex flex-col relative theme-t">
+        
+        <!-- SCOREBOARD & HISTORY -->
+        <div class="sticky top-0 z-30 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 shadow-xl">
+            <div class="flex justify-between items-center p-3 px-4">
+                <div class="flex flex-col items-center w-1/3">
+                    <span class="text-xs font-bold text-green-500 tracking-wider">US</span>
+                    <span id="score-us" class="text-3xl font-bold font-tech text-white">0</span>
+                </div>
+                <div class="flex flex-col items-center w-1/3">
+                    <div class="bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-mono text-xs font-bold mb-1">ROUND <span id="round-num">1</span></div>
+                    <div id="side-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500 text-black">ENEMY T</div>
+                </div>
+                <div class="flex flex-col items-center w-1/3">
+                    <span class="text-xs font-bold text-red-500 tracking-wider">THEM</span>
+                    <span id="score-them" class="text-3xl font-bold font-tech text-white">0</span>
+                </div>
+            </div>
+            <div id="history-bar" class="flex gap-1 px-4 pb-2 overflow-x-auto history-scroll whitespace-nowrap h-6 items-center justify-center">
+                <span class="text-[10px] text-zinc-600 italic">No history yet</span>
+            </div>
+        </div>
+
+        <!-- SCROLLABLE INPUTS -->
+        <div class="p-4 space-y-6 overflow-y-auto flex-1">
+            
+            <!-- 1. Round Outcome -->
+            <section class="animate-in" style="animation-delay: 0s;">
+                <div class="flex justify-between items-baseline mb-2">
+                    <label class="text-xs text-zinc-500 font-bold uppercase tracking-widest">Round Result</label>
+                    <span class="text-[10px] text-zinc-600 uppercase" id="loss-bonus-indicator">Bonus: Lvl 1 ($1400)</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 h-14">
+                    <button onclick="setOutcome('loss')" id="btn-loss" class="btn-action rounded-lg border-2 border-zinc-700 bg-zinc-800 text-zinc-400 font-bold text-lg hover:bg-zinc-700">THEY LOST</button>
+                    <button onclick="setOutcome('win')" id="btn-win" class="btn-action rounded-lg border-2 border-zinc-700 bg-zinc-800 text-zinc-400 font-bold text-lg hover:bg-zinc-700">THEY WON</button>
+                </div>
+                <div id="outcome-details" class="mt-2 h-0 overflow-hidden transition-all duration-300">
+                    <button id="btn-plant" onclick="togglePlant()" class="w-full py-2 text-xs font-bold uppercase rounded border border-orange-900/50 bg-orange-900/20 text-orange-500 transition btn-action">
+                        Did they plant? (+$800)
+                    </button>
+                </div>
+            </section>
+
+            <!-- 2. What Did They Buy? -->
+            <section class="animate-in" style="animation-delay: 0.05s;">
+                <label class="text-xs text-zinc-500 font-bold uppercase tracking-widest mb-2 block">Enemy Buy This Round</label>
+                <div class="grid grid-cols-4 gap-2">
+                    <button id="buy-eco" onclick="setBuy('eco')" class="buy-select p-3 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-bold text-zinc-400 btn-action leading-tight">Eco</button>
+                    <button id="buy-pistol" onclick="setBuy('pistol')" class="buy-select p-3 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-bold text-zinc-400 btn-action leading-tight">Pistol</button>
+                    <button id="buy-force" onclick="setBuy('force')" class="buy-select p-3 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-bold text-zinc-400 btn-action leading-tight">Force</button>
+                    <button id="buy-full" onclick="setBuy('full')" class="buy-select p-3 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-bold text-zinc-400 btn-action leading-tight">Full</button>
+                </div>
+            </section>
+
+            <!-- 3. Improved Survivors UI -->
+            <section class="animate-in" style="animation-delay: 0.1s;">
+                <div class="flex justify-between items-center mb-4">
+                    <label class="text-xs text-zinc-500 font-bold uppercase tracking-widest">Enemies Alive</label>
+                    <span id="survivor-count-display" class="bg-zinc-800 px-3 py-1 rounded text-lg font-bold text-white font-mono">0</span>
+                </div>
+                
+                <div class="flex justify-between items-center bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 mb-6">
+                    <!-- 5 Survivor Slots -->
+                    <div onclick="setSurvivors(1)" class="survivor-slot cursor-pointer" id="s1"><svg width="40" height="40" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg></div>
+                    <div onclick="setSurvivors(2)" class="survivor-slot cursor-pointer" id="s2"><svg width="40" height="40" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg></div>
+                    <div onclick="setSurvivors(3)" class="survivor-slot cursor-pointer" id="s3"><svg width="40" height="40" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg></div>
+                    <div onclick="setSurvivors(4)" class="survivor-slot cursor-pointer" id="s4"><svg width="40" height="40" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg></div>
+                    <div onclick="setSurvivors(5)" class="survivor-slot cursor-pointer" id="s5"><svg width="40" height="40" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg></div>
+                    <button onclick="setSurvivors(0)" class="text-xs bg-zinc-800 p-2 rounded hover:bg-zinc-700 font-bold ml-2">ACE</button>
+                </div>
+
+                <div id="loot-section" class="grid grid-cols-2 gap-4">
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+                         <div class="text-[10px] text-zinc-500 uppercase font-bold mb-2">Stolen Rifles</div>
+                         <div class="flex items-center justify-between bg-black/30 p-1 rounded-lg">
+                            <button onclick="adjCounter('rifles', -1)" class="w-10 h-10 rounded bg-zinc-800 text-white">-</button>
+                            <span id="rifles-val" class="font-bold text-xl">0</span>
+                            <button onclick="adjCounter('rifles', 1)" id="rifle-plus" class="w-10 h-10 rounded bg-zinc-800 text-white">+</button>
+                         </div>
+                    </div>
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+                         <div class="text-[10px] text-zinc-500 uppercase font-bold mb-2">Enemy AWPs</div>
+                         <div class="flex items-center justify-between bg-black/30 p-1 rounded-lg">
+                            <button onclick="adjCounter('awps', -1)" class="w-10 h-10 rounded bg-zinc-800 text-white">-</button>
+                            <span id="awps-val" class="font-bold text-xl">0</span>
+                            <button onclick="adjCounter('awps', 1)" id="awp-plus" class="w-10 h-10 rounded bg-zinc-800 text-white">+</button>
+                         </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- PREDICTION PANEL -->
+        <div class="bg-zinc-900 border-t border-zinc-800 p-4 pb-6 shadow-2xl z-20">
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-black/40 rounded-xl p-3 border border-red-900/30">
+                    <div class="text-[10px] text-red-400 font-bold uppercase mb-1">ENEMY POWER</div>
+                    <div id="pred-them" class="text-xl font-bold font-tech text-white">...</div>
+                    <div id="money-est" class="text-xs text-zinc-500 mt-1 font-mono">$0 Cash</div>
+                </div>
+                <div class="bg-black/40 rounded-xl p-3 border border-green-900/30">
+                    <div class="text-[10px] text-green-400 font-bold uppercase mb-1">OUR STRAT</div>
+                    <div id="pred-us" class="text-xl font-bold font-tech text-white">...</div>
+                    <div id="team-value" class="text-xs text-zinc-400 mt-1">Value: $0</div>
+                </div>
+            </div>
+            <button onclick="nextRound()" class="w-full py-4 rounded-xl bg-white text-black font-extrabold uppercase tracking-widest hover:bg-zinc-200 transition btn-action shadow-lg flex items-center justify-center gap-2">
+                Commit Round <span id="commit-round-num">1</span>
+            </button>
+        </div>
     </div>
 
     <script>
-        let streak = 0;
-        function changeStreak(val) {
-            streak = Math.max(0, Math.min(4, streak + val));
-            document.getElementById('streak').innerText = streak;
-            document.getElementById('payout').innerText = 1400 + (streak * 500);
+        const game = {
+            round: 1,
+            enemySide: 'T', 
+            lossCount: 0, 
+            scoreUs: 0,
+            scoreThem: 0,
+            history: [],
+            enemyBank: 800,
+            outcome: null, 
+            planted: false, 
+            survivors: 0,
+            riflesStolen: 0,
+            awps: 0,
+            buyType: 'pistol' 
+        };
+
+        const els = {
+            startScreen: document.getElementById('start-screen'),
+            dashboard: document.getElementById('dashboard'),
+            roundNum: document.getElementById('round-num'),
+            commitRoundNum: document.getElementById('commit-round-num'),
+            sideBadge: document.getElementById('side-badge'),
+            scoreUs: document.getElementById('score-us'),
+            scoreThem: document.getElementById('score-them'),
+            historyBar: document.getElementById('history-bar'),
+            lossIndicator: document.getElementById('loss-bonus-indicator'),
+            btnLoss: document.getElementById('btn-loss'),
+            btnWin: document.getElementById('btn-win'),
+            outcomeDetails: document.getElementById('outcome-details'),
+            btnPlant: document.getElementById('btn-plant'),
+            buyBtns: document.querySelectorAll('.buy-select'),
+            riflesVal: document.getElementById('rifles-val'),
+            awpsVal: document.getElementById('awps-val'),
+            predThem: document.getElementById('pred-them'),
+            predUs: document.getElementById('pred-us'),
+            moneyEst: document.getElementById('money-est'),
+            teamValue: document.getElementById('team-value'),
+            survivorIcons: [
+                document.getElementById('s1'),
+                document.getElementById('s2'),
+                document.getElementById('s3'),
+                document.getElementById('s4'),
+                document.getElementById('s5')
+            ]
+        };
+
+        function startGame(side) {
+            game.enemySide = side;
+            updateTheme();
+            updateHeader();
+            resetInputsForNewRound();
+            els.startScreen.classList.add('opacity-0', 'pointer-events-none');
+            els.dashboard.classList.remove('hidden');
+        }
+
+        function nextRound() {
+            if (!game.outcome) return;
+            calculateFinalBank();
+            if (game.outcome === 'win') {
+                game.scoreThem++;
+                game.history.push('W');
+                game.lossCount = Math.max(0, game.lossCount - 1);
+            } else {
+                game.scoreUs++;
+                game.history.push('L');
+                game.lossCount = Math.min(4, game.lossCount + 1);
+            }
+            game.round++;
+            if (game.round === 13) {
+                game.enemySide = (game.enemySide === 'T') ? 'CT' : 'T';
+                game.lossCount = 0; 
+                game.enemyBank = 800; 
+                alert("Halftime! Switching Sides.");
+                updateTheme();
+            }
+            updateHeader();
+            updateHistoryUI();
+            resetInputsForNewRound();
+            els.dashboard.querySelector('.overflow-y-auto').scrollTop = 0;
+        }
+
+        function calculateFinalBank() {
+            let spending = 0;
+            const currentBank = game.enemyBank;
+            if (game.round === 1 || game.round === 13) {
+                spending = (game.buyType === 'eco') ? 0 : currentBank;
+            } else {
+                if (game.buyType === 'eco') spending = 0; 
+                else if (game.buyType === 'pistol') spending = 1500;
+                else if (game.buyType === 'force') spending = currentBank; 
+                else if (game.buyType === 'full') spending = Math.min(currentBank, 4100);
+            }
+            let income = 0;
+            if (game.outcome === 'win') {
+                income = 3250; 
+            } else {
+                let tempStreak = game.lossCount;
+                if (game.outcome === 'loss') tempStreak = Math.min(4, tempStreak + 1);
+                else tempStreak = Math.max(0, tempStreak - 1);
+                income = 1400 + (tempStreak * 500);
+                if (game.enemySide === 'T' && game.planted) income += 800;
+            }
+            game.enemyBank = Math.min(16000, (currentBank - spending) + income);
+        }
+
+        function updateTheme() {
+            els.dashboard.classList.remove('theme-t', 'theme-ct');
+            els.dashboard.classList.add(game.enemySide === 'T' ? 'theme-t' : 'theme-ct');
+            els.sideBadge.innerText = "ENEMY " + game.enemySide;
+            els.sideBadge.className = `px-2 py-0.5 rounded text-[10px] font-bold ${game.enemySide === 'T' ? 'bg-yellow-500 text-black' : 'bg-blue-500 text-white'}`;
+        }
+
+        function updateHeader() {
+            els.roundNum.innerText = game.round;
+            els.commitRoundNum.innerText = game.round;
+            els.scoreUs.innerText = game.scoreUs;
+            els.scoreThem.innerText = game.scoreThem;
+            const bonusVal = 1400 + (game.lossCount * 500);
+            els.lossIndicator.innerText = `Bonus: Lvl ${game.lossCount + 1} ($${bonusVal})`;
+        }
+
+        function updateHistoryUI() {
+            els.historyBar.innerHTML = '';
+            game.history.forEach(res => {
+                const dot = document.createElement('div');
+                dot.className = `w-6 h-6 rounded flex items-center justify-center border text-[10px] font-bold shrink-0 ${res === 'W' ? 'bg-red-900/50 border-red-500 text-red-500' : 'bg-green-900/50 border-green-500 text-green-500'}`;
+                dot.innerText = res === 'W' ? 'L' : 'W';
+                els.historyBar.appendChild(dot);
+            });
+            els.historyBar.scrollLeft = els.historyBar.scrollWidth;
+        }
+
+        function setOutcome(res) {
+            game.outcome = res;
+            els.btnLoss.className = `btn-action rounded-lg border-2 font-bold text-lg ${res === 'loss' ? 'border-green-500 bg-green-900/20 text-green-400' : 'border-zinc-700 bg-zinc-800 text-zinc-500'}`;
+            els.btnWin.className = `btn-action rounded-lg border-2 font-bold text-lg ${res === 'win' ? 'border-red-500 bg-red-900/20 text-red-400' : 'border-zinc-700 bg-zinc-800 text-zinc-500'}`;
+            els.outcomeDetails.style.height = (res === 'loss' && game.enemySide === 'T') ? '40px' : '0';
+            previewNextRound();
+        }
+
+        function setSurvivors(num) {
+            game.survivors = num;
+            document.getElementById('survivor-count-display').innerText = num;
+            els.survivorIcons.forEach((icon, idx) => {
+                icon.classList.toggle('active', idx < num);
+            });
+            
+            // SYNC LOCK: Prevent stealing more than survived
+            if (game.riflesStolen > num) game.riflesStolen = num;
+            if (game.awps > num) game.awps = num;
+            
+            document.getElementById('rifle-plus').disabled = (game.riflesStolen >= num);
+            document.getElementById('awp-plus').disabled = (game.awps >= num);
+            
+            updateCounters();
+            previewNextRound();
+        }
+
+        function adjCounter(type, val) {
+            if (type === 'rifles') {
+                game.riflesStolen = Math.min(game.survivors, Math.max(0, game.riflesStolen + val));
+            } else {
+                game.awps = Math.min(game.survivors, Math.max(0, game.awps + val));
+            }
+            updateCounters();
+            previewNextRound();
+        }
+
+        function updateCounters() {
+            els.riflesVal.innerText = game.riflesStolen;
+            els.awpsVal.innerText = game.awps;
+            // Visual feedback for locked buttons
+            document.getElementById('rifle-plus').style.opacity = (game.riflesStolen >= game.survivors && game.survivors > 0) ? '0.3' : '1';
+            document.getElementById('awp-plus').style.opacity = (game.awps >= game.survivors && game.survivors > 0) ? '0.3' : '1';
+        }
+
+        function setBuy(type) {
+            game.buyType = type;
+            els.buyBtns.forEach(btn => btn.className = `buy-select p-3 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-bold text-zinc-400 btn-action`);
+            const btn = document.getElementById('buy-' + type.replace('_', ''));
+            if(btn) btn.className = `buy-select p-3 rounded bg-white border border-white text-[10px] font-bold text-black btn-action`;
+            previewNextRound();
+        }
+
+        function togglePlant() {
+            game.planted = !game.planted;
+            els.btnPlant.className = game.planted ? "w-full py-2 text-xs font-bold uppercase rounded border border-orange-500 bg-orange-600 text-white shadow-lg btn-action" : "w-full py-2 text-xs font-bold uppercase rounded border border-orange-900/50 bg-orange-900/20 text-orange-500 btn-action";
+            els.btnPlant.innerText = game.planted ? "BOMB PLANTED (+$800)" : "Did they plant? (+$800)";
+            previewNextRound();
+        }
+
+        function previewNextRound() {
+            let simBank = game.enemyBank; 
+            let spending = 0;
+            if (game.round === 1 || game.round === 13) spending = (game.buyType === 'eco') ? 0 : simBank;
+            else {
+                if (game.buyType === 'eco') spending = 0; 
+                else if (game.buyType === 'pistol') spending = 1500;
+                else if (game.buyType === 'force') spending = simBank; 
+                else spending = Math.min(simBank, 4100);
+            }
+            
+            let income = 0;
+            if (game.outcome) {
+                if (game.outcome === 'win') income = 3250;
+                else {
+                    let streak = game.lossCount + 1;
+                    income = 1400 + (Math.min(4, streak) * 500);
+                    if (game.enemySide === 'T' && game.planted) income += 800;
+                }
+            }
+
+            const nextCash = Math.max(0, (simBank - spending) + income);
+            
+            // Equipment Value Calculation
+            // Survivors are keeping gear. If they won, gear is ~3500. If they lost, it might be 0 unless rifles stolen.
+            let gearValue = (game.outcome === 'win') ? (game.survivors * 3500) : (game.riflesStolen * 2700 + game.awps * 4750);
+            const teamPower = (nextCash * 5) + gearValue;
+            const avgPower = teamPower / 5;
+
+            els.moneyEst.innerText = `$${Math.round(nextCash)} Cash`;
+            els.teamValue.innerText = `Eq. Value: $${Math.round(gearValue)}`;
+
+            let p = "ECO";
+            let s = "ANTI-ECO";
+            let c = "text-green-500";
+
+            if (avgPower > 4200) { p = "FULL BUY"; s = "FULL BUY"; c = "text-red-500"; }
+            else if (avgPower > 2500) { p = "FORCE BUY"; s = "ANTI-FORCE"; c = "text-yellow-400"; }
+            
+            if (game.outcome === null) { p = "..."; s = "..."; c = "text-zinc-500"; }
+
+            els.predThem.innerText = p;
+            els.predThem.className = "text-xl font-bold font-tech " + c;
+            els.predUs.innerText = s;
+        }
+
+        function resetInputsForNewRound() {
+            game.outcome = null; game.planted = false; game.survivors = 0; game.riflesStolen = 0; game.awps = 0;
+            els.btnLoss.className = els.btnWin.className = "btn-action rounded-lg border-2 border-zinc-700 bg-zinc-800 text-zinc-400 font-bold text-lg hover:bg-zinc-700";
+            els.outcomeDetails.style.height = '0';
+            setSurvivors(0);
+            setBuy(game.round === 1 || game.round === 13 ? 'pistol' : 'full');
+            previewNextRound();
         }
     </script>
 </body>
